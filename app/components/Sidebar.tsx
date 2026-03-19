@@ -80,7 +80,7 @@ export default function Sidebar() {
 
       {/* Footer */}
       <div style={{ padding: "16px 24px", borderTop: "1px solid var(--border-bright)" }}>
-        <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>v1.0.2</div>
+        <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>v1.0.3</div>
       </div>
     </aside>
   );

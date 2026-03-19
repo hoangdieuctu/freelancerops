@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getTeam } from "../../actions/teams";
 import { getMembers } from "../../actions/members";
 import { notFound } from "next/navigation";

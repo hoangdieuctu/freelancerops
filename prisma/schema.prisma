@@ -20,6 +20,7 @@ model Member {
   id             String       @id @default(cuid())
   name           String
   role           String
+  email          String?
   isProfitMember Boolean      @default(false)
   createdAt      DateTime     @default(now())
   teams          TeamMember[]

@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getCustomers } from "../actions/customers";
 import CreateCustomerForm from "./CreateCustomerForm";
 import DeleteCustomerButton from "./DeleteCustomerButton";

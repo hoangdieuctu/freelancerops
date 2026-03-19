@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getProject } from "../../actions/projects";
 import { getTeams } from "../../actions/teams";
 import { getCustomers } from "../../actions/customers";

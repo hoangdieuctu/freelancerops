@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getMembers, getMemberEarningTotals } from "../actions/members";
 import { getTeams } from "../actions/teams";
 import CreateMemberForm from "./CreateMemberForm";
@@ -5,6 +7,7 @@ import DeleteMemberButton from "./DeleteMemberButton";
 import AssignTeamButton from "./AssignTeamButton";
 import UnassignTeamButton from "./UnassignTeamButton";
 import ProfitMemberButton from "./ProfitMemberButton";
+import EditMemberButton from "./EditMemberButton";
 import Link from "next/link";
 
 export default async function MembersPage() {
@@ -57,6 +60,9 @@ export default async function MembersPage() {
                   <div style={{ fontSize: "11px", color: "var(--green)", marginTop: "4px", fontWeight: 600 }}>
                     ${(earningTotals[member.id] ?? 0).toFixed(2)} earned
                   </div>
+                  {member.email && (
+                    <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>{member.email}</div>
+                  )}
                 </div>
 
                 {/* Team assignments */}
@@ -92,6 +98,7 @@ export default async function MembersPage() {
                 {/* Actions */}
                 <div style={{ display: "flex", gap: "8px", flexShrink: 0 }}>
                   <ProfitMemberButton memberId={member.id} isProfitMember={member.isProfitMember} />
+                  <EditMemberButton memberId={member.id} name={member.name} role={member.role} email={member.email} />
                   <AssignTeamButton memberId={member.id} availableTeams={availableTeams} />
                   <DeleteMemberButton memberId={member.id} memberName={member.name} />
                 </div>

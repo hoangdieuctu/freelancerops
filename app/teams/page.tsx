@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getTeams } from "../actions/teams";
 import Link from "next/link";
 import CreateTeamForm from "./CreateTeamForm";

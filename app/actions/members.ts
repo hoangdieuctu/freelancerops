@@ -68,10 +68,15 @@ export async function getMembers() {
   });
 }
 
-export async function createMember(data: { name: string; role: string }) {
+export async function createMember(data: { name: string; role: string; email?: string }) {
   const member = await prisma.member.create({ data });
   revalidatePath("/members");
   return member;
+}
+
+export async function updateMember(id: string, data: { name: string; role: string; email?: string }) {
+  await prisma.member.update({ where: { id }, data });
+  revalidatePath("/members");
 }
 
 export async function deleteMember(id: string) {

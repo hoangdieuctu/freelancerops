@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getInvoice } from "../../actions/invoices";
 import { getProfitMember } from "../../actions/members";
 import { notFound } from "next/navigation";
@@ -53,6 +55,14 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           </div>
         </div>
         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <a
+            href={`/api/invoices/${invoice.id}/pdf`}
+            download
+            className="btn btn-ghost"
+            style={{ textDecoration: "none" }}
+          >
+            Export PDF
+          </a>
           <EditInvoiceButton invoice={{
             id: invoice.id,
             number: invoice.number,
@@ -154,17 +164,20 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         <div style={{ fontSize: "10px", letterSpacing: "0.15em", color: "var(--text-muted)", marginBottom: "16px" }}>INVOICE LINES</div>
         <div style={{ background: "var(--border)", display: "flex", flexDirection: "column", gap: "1px" }}>
           {/* Header */}
-          <div style={{ background: "var(--bg)", padding: "10px 20px", display: "grid", gridTemplateColumns: "1fr 100px 100px 100px", gap: "16px" }}>
-            {["MEMBER", "CLIENT RATE", "HOURS", "SUBTOTAL"].map((h) => (
+          <div style={{ background: "var(--bg)", padding: "10px 20px", display: "grid", gridTemplateColumns: "1fr 100px 100px 100px 100px", gap: "16px" }}>
+            {["MEMBER", "CLIENT RATE", "HOURS", "INTERNAL", "SUBTOTAL"].map((h) => (
               <div key={h} style={{ fontSize: "10px", letterSpacing: "0.1em", color: "var(--text-muted)", textAlign: h === "MEMBER" ? "left" : "right" }}>{h}</div>
             ))}
           </div>
           {invoice.lines.map((line) => {
             const isFixed = line.isFixed;
+            const internalAmount = isFixed
+              ? line.subtotal
+              : line.hoursSpent * (line.teamMember.internalRate ?? 0);
             return (
             <div
               key={line.id}
-              style={{ background: "var(--surface)", padding: "14px 20px", display: "grid", gridTemplateColumns: "1fr 100px 100px 100px", gap: "16px", alignItems: "center" }}
+              style={{ background: "var(--surface)", padding: "14px 20px", display: "grid", gridTemplateColumns: "1fr 100px 100px 100px 100px", gap: "16px", alignItems: "center" }}
             >
               <div>
                 <div style={{ fontSize: "13px", color: "var(--text)", fontWeight: 500 }}>{line.teamMember.member.name}</div>
@@ -179,17 +192,21 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
               <div style={{ fontSize: "12px", color: "var(--text-dim)", textAlign: "right" }}>
                 {isFixed ? "—" : `${line.hoursSpent}h`}
               </div>
+              <div style={{ fontSize: "12px", color: "var(--text-dim)", textAlign: "right" }}>
+                ${internalAmount.toFixed(2)}
+              </div>
               <div style={{ fontSize: "13px", color: "var(--text)", fontWeight: 600, textAlign: "right" }}>${line.subtotal.toFixed(2)}</div>
             </div>
             );
           })}
           {/* Total row */}
-          <div style={{ background: "var(--bg)", padding: "14px 20px", display: "grid", gridTemplateColumns: "1fr 100px 100px 100px", gap: "16px" }}>
+          <div style={{ background: "var(--bg)", padding: "14px 20px", display: "grid", gridTemplateColumns: "1fr 100px 100px 100px 100px", gap: "16px" }}>
             <div style={{ fontSize: "10px", letterSpacing: "0.1em", color: "var(--text-muted)" }}>TOTAL</div>
-            <div style={{ fontSize: "12px", color: "var(--text-dim)", textAlign: "right" }}>${total.toFixed(2)}</div>
+            <div />
             <div style={{ fontSize: "12px", color: "var(--text-dim)", textAlign: "right" }}>
               {invoice.lines.filter(l => !l.isFixed).reduce((s, l) => s + l.hoursSpent, 0).toFixed(1)}h
             </div>
+            <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-dim)", textAlign: "right" }}>${internalTotal.toFixed(2)}</div>
             <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--amber)", textAlign: "right" }}>${total.toFixed(2)}</div>
           </div>
         </div>

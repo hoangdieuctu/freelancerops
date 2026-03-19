@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getInvoices, getNextInvoiceNumber } from "../actions/invoices";
 import { getProjects } from "../actions/projects";
 import CreateInvoiceForm from "./CreateInvoiceForm";
