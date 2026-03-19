@@ -18,7 +18,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   if (!invoice) notFound();
 
   const total = invoice.lines.reduce((s, l) => s + l.subtotal, 0);
-  const hourlyLines = invoice.lines.filter(l => !(l.hoursSpent === 1 && l.clientRate !== (l.teamMember.clientRate ?? 0)));
+  const hourlyLines = invoice.lines.filter(l => !l.isFixed);
   const internalTotal = hourlyLines.reduce((s, l) => s + l.hoursSpent * (l.teamMember.internalRate ?? 0), 0);
   const clientHourlyTotal = hourlyLines.reduce((s, l) => s + l.subtotal, 0);
   const diff = clientHourlyTotal - internalTotal;
@@ -64,6 +64,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
               id: l.id,
               teamMemberId: l.teamMemberId,
               hoursSpent: l.hoursSpent,
+              isFixed: l.isFixed,
               description: l.description,
               clientRate: l.clientRate,
             })),
@@ -143,7 +144,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
             {invoice.lines.length} member{invoice.lines.length !== 1 ? "s" : ""}
             {" · "}
-            {invoice.lines.filter(l => !(l.hoursSpent === 1 && l.clientRate !== (l.teamMember.clientRate ?? 0))).reduce((s, l) => s + l.hoursSpent, 0).toFixed(1)}h total
+            {invoice.lines.filter(l => !l.isFixed).reduce((s, l) => s + l.hoursSpent, 0).toFixed(1)}h total
           </div>
         </div>
       </div>
@@ -159,7 +160,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
             ))}
           </div>
           {invoice.lines.map((line) => {
-            const isFixed = line.hoursSpent === 1 && line.clientRate !== (line.teamMember.clientRate ?? 0);
+            const isFixed = line.isFixed;
             return (
             <div
               key={line.id}
@@ -187,7 +188,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
             <div style={{ fontSize: "10px", letterSpacing: "0.1em", color: "var(--text-muted)" }}>TOTAL</div>
             <div style={{ fontSize: "12px", color: "var(--text-dim)", textAlign: "right" }}>${total.toFixed(2)}</div>
             <div style={{ fontSize: "12px", color: "var(--text-dim)", textAlign: "right" }}>
-              {invoice.lines.filter(l => !(l.hoursSpent === 1 && l.clientRate !== (l.teamMember.clientRate ?? 0))).reduce((s, l) => s + l.hoursSpent, 0).toFixed(1)}h
+              {invoice.lines.filter(l => !l.isFixed).reduce((s, l) => s + l.hoursSpent, 0).toFixed(1)}h
             </div>
             <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--amber)", textAlign: "right" }}>${total.toFixed(2)}</div>
           </div>

@@ -14,7 +14,18 @@ export async function getTeam(id: string) {
   return prisma.team.findUnique({
     where: { id },
     include: {
-      members: { include: { member: true, shadowOf: { include: { member: true } } } },
+      members: {
+        include: {
+          member: {
+            include: {
+              earnings: {
+                include: { invoice: { include: { project: true } } },
+              },
+            },
+          },
+          shadowOf: { include: { member: true } },
+        },
+      },
       projects: { include: { customer: true } },
     },
   });

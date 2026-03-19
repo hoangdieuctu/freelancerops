@@ -22,6 +22,7 @@ type Invoice = {
     id: string;
     teamMemberId: string;
     hoursSpent: number;
+    isFixed: boolean;
     description: string | null;
     clientRate: number;
   }[];
@@ -43,9 +44,7 @@ export default function EditInvoiceButton({ invoice }: { invoice: Invoice }) {
   const initialDescriptions: Record<string, string> = {};
 
   for (const line of invoice.lines) {
-    const tm = members.find((m) => m.id === line.teamMemberId);
-    const isFixed = line.hoursSpent === 1 && line.clientRate !== (tm?.clientRate ?? 0);
-    if (isFixed) {
+    if (line.isFixed) {
       initialModes[line.teamMemberId] = "fixed";
       initialFixedAmounts[line.teamMemberId] = String(line.clientRate);
     } else {
@@ -85,6 +84,7 @@ export default function EditInvoiceButton({ invoice }: { invoice: Invoice }) {
           return {
             teamMemberId: tm.id,
             hoursSpent: 1,
+            isFixed: true,
             description: descriptions[tm.id] || undefined,
             clientRate: amount,
           };
@@ -92,6 +92,7 @@ export default function EditInvoiceButton({ invoice }: { invoice: Invoice }) {
         return {
           teamMemberId: tm.id,
           hoursSpent: parseFloat(hours[tm.id] ?? "0") || 0,
+          isFixed: false,
           description: descriptions[tm.id] || undefined,
           clientRate: tm.clientRate ?? 0,
         };

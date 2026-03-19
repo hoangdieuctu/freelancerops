@@ -95,6 +95,9 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ id:
                           Backup for {tm.shadowOf.member.name}
                         </div>
                       )}
+                      <div style={{ fontSize: "11px", color: "var(--green)", marginTop: "4px", fontWeight: 600 }}>
+                        ${tm.member.earnings.filter(e => e.invoice.project.teamId === team.id).reduce((s, e) => s + e.amount, 0).toFixed(2)} earned
+                      </div>
                     </div>
                     <RateEditor
                       teamMemberId={tm.id}

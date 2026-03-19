@@ -43,7 +43,7 @@ export async function createInvoice(data: {
   invoiceDate: string;
   dueDate?: string;
   notes?: string;
-  lines: { teamMemberId: string; hoursSpent: number; description?: string; clientRate: number }[];
+  lines: { teamMemberId: string; hoursSpent: number; isFixed: boolean; description?: string; clientRate: number }[];
 }) {
   const invoice = await prisma.invoice.create({
     data: {
@@ -56,6 +56,7 @@ export async function createInvoice(data: {
         create: data.lines.map((l) => ({
           teamMemberId: l.teamMemberId,
           hoursSpent: l.hoursSpent,
+          isFixed: l.isFixed,
           description: l.description || null,
           clientRate: l.clientRate,
           subtotal: l.hoursSpent * l.clientRate,
@@ -75,7 +76,7 @@ export async function updateInvoice(
     invoiceDate: string;
     dueDate?: string;
     notes?: string;
-    lines: { teamMemberId: string; hoursSpent: number; description?: string; clientRate: number }[];
+    lines: { teamMemberId: string; hoursSpent: number; isFixed: boolean; description?: string; clientRate: number }[];
   }
 ) {
   const invoice = await prisma.invoice.findUnique({ where: { id }, select: { status: true, projectId: true } });
@@ -94,6 +95,7 @@ export async function updateInvoice(
         create: data.lines.map((l) => ({
           teamMemberId: l.teamMemberId,
           hoursSpent: l.hoursSpent,
+          isFixed: l.isFixed,
           description: l.description || null,
           clientRate: l.clientRate,
           subtotal: l.hoursSpent * l.clientRate,
@@ -110,7 +112,44 @@ export async function updateInvoice(
 export async function updateInvoiceStatus(id: string, status: string) {
   const invoice = await prisma.invoice.findUnique({ where: { id }, select: { status: true } });
   if (invoice?.status === "paid") throw new Error("Paid invoices cannot be changed.");
+
   const updated = await prisma.invoice.update({ where: { id }, data: { status } });
+
+  if (status === "paid") {
+    const lines = await prisma.invoiceLine.findMany({
+      where: { invoiceId: id },
+      include: { teamMember: true },
+    });
+
+    await prisma.earning.createMany({
+      data: lines.map((line) => {
+        const amount = line.isFixed
+          ? line.subtotal
+          : line.hoursSpent * (line.teamMember.internalRate ?? 0);
+        return {
+          memberId: line.teamMember.memberId,
+          invoiceId: id,
+          invoiceLineId: line.id,
+          amount,
+        };
+      }),
+    });
+
+    // Margin earning for profit member (hourly lines only)
+    const profitMember = await prisma.member.findFirst({ where: { isProfitMember: true } });
+    if (profitMember) {
+      const hourlyLines = lines.filter(l => !l.isFixed);
+      const clientHourlyTotal = hourlyLines.reduce((s, l) => s + l.subtotal, 0);
+      const internalTotal = hourlyLines.reduce((s, l) => s + l.hoursSpent * (l.teamMember.internalRate ?? 0), 0);
+      const margin = clientHourlyTotal - internalTotal;
+      if (margin !== 0) {
+        await prisma.earning.create({
+          data: { memberId: profitMember.id, invoiceId: id, amount: margin },
+        });
+      }
+    }
+  }
+
   revalidatePath("/invoices");
   revalidatePath(`/invoices/${id}`);
   return updated;

@@ -3,6 +3,54 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 
+export async function getEarningsByProject() {
+  const earnings = await prisma.earning.findMany({
+    include: { invoice: { include: { project: { include: { customer: true } } } } },
+  });
+  const map = new Map<string, { name: string; customer: string | null; total: number }>();
+  for (const e of earnings) {
+    const p = e.invoice.project;
+    const existing = map.get(p.id);
+    if (existing) {
+      existing.total += e.amount;
+    } else {
+      map.set(p.id, { name: p.name, customer: p.customer?.name ?? null, total: e.amount });
+    }
+  }
+  return Array.from(map.entries())
+    .map(([id, v]) => ({ id, ...v }))
+    .sort((a, b) => b.total - a.total);
+}
+
+export async function getEarningsByTeam() {
+  const earnings = await prisma.earning.findMany({
+    include: { invoice: { include: { project: { include: { team: true } } } } },
+  });
+  const map = new Map<string, { name: string; total: number }>();
+  for (const e of earnings) {
+    const team = e.invoice.project.team;
+    const key = team ? team.id : "__none__";
+    const name = team ? team.name : "No team";
+    const existing = map.get(key);
+    if (existing) {
+      existing.total += e.amount;
+    } else {
+      map.set(key, { name, total: e.amount });
+    }
+  }
+  return Array.from(map.entries())
+    .map(([id, v]) => ({ id, ...v }))
+    .sort((a, b) => b.total - a.total);
+}
+
+export async function getMemberEarningTotals(): Promise<Record<string, number>> {
+  const grouped = await prisma.earning.groupBy({
+    by: ["memberId"],
+    _sum: { amount: true },
+  });
+  return Object.fromEntries(grouped.map((g) => [g.memberId, g._sum.amount ?? 0]));
+}
+
 export async function getProfitMember() {
   return prisma.member.findFirst({ where: { isProfitMember: true } });
 }

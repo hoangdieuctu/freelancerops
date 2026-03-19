@@ -23,6 +23,7 @@ model Member {
   isProfitMember Boolean      @default(false)
   createdAt      DateTime     @default(now())
   teams          TeamMember[]
+  earnings       Earning[]
 }
 
 model TeamMember {
@@ -75,6 +76,7 @@ model Invoice {
   createdAt   DateTime      @default(now())
   project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
   lines       InvoiceLine[]
+  earnings    Earning[]
 }
 
 model InvoiceLine {
@@ -82,9 +84,21 @@ model InvoiceLine {
   invoiceId    String
   teamMemberId String
   hoursSpent   Float
+  isFixed      Boolean @default(false)
   description  String?
   clientRate   Float
   subtotal     Float
   invoice      Invoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   teamMember   TeamMember @relation(fields: [teamMemberId], references: [id])
+}
+
+model Earning {
+  id            String     @id @default(cuid())
+  memberId      String
+  invoiceId     String
+  invoiceLineId String?
+  amount        Float
+  createdAt     DateTime   @default(now())
+  member        Member     @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  invoice       Invoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 }

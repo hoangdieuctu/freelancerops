@@ -69,6 +69,7 @@ export default function CreateInvoiceForm({
           return {
             teamMemberId: tm.id,
             hoursSpent: 1,
+            isFixed: true,
             description: descriptions[tm.id] || undefined,
             clientRate: amount,
           };
@@ -76,6 +77,7 @@ export default function CreateInvoiceForm({
         return {
           teamMemberId: tm.id,
           hoursSpent: parseFloat(hours[tm.id] ?? "0") || 0,
+          isFixed: false,
           description: descriptions[tm.id] || undefined,
           clientRate: tm.clientRate ?? 0,
         };

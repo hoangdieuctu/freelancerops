@@ -1,4 +1,4 @@
-import { getMembers } from "../actions/members";
+import { getMembers, getMemberEarningTotals } from "../actions/members";
 import { getTeams } from "../actions/teams";
 import CreateMemberForm from "./CreateMemberForm";
 import DeleteMemberButton from "./DeleteMemberButton";
@@ -8,7 +8,7 @@ import ProfitMemberButton from "./ProfitMemberButton";
 import Link from "next/link";
 
 export default async function MembersPage() {
-  const [members, teams] = await Promise.all([getMembers(), getTeams()]);
+  const [members, teams, earningTotals] = await Promise.all([getMembers(), getTeams(), getMemberEarningTotals()]);
 
   return (
     <div style={{ padding: "40px 48px" }} className="fade-in">
@@ -19,6 +19,8 @@ export default async function MembersPage() {
           </div>
           <div style={{ color: "var(--text-muted)", marginTop: "8px", fontSize: "12px" }}>
             {members.length} member{members.length !== 1 ? "s" : ""}
+            {" · "}
+            <span style={{ color: "var(--green)" }}>${Object.values(earningTotals).reduce((s, v) => s + v, 0).toFixed(2)} total earned</span>
           </div>
         </div>
         <CreateMemberForm />
@@ -51,6 +53,9 @@ export default async function MembersPage() {
                   <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--text)" }}>{member.name}</div>
                   <div style={{ fontSize: "10px", color: "var(--amber)", marginTop: "4px", letterSpacing: "0.08em" }}>
                     {member.role.toUpperCase()}
+                  </div>
+                  <div style={{ fontSize: "11px", color: "var(--green)", marginTop: "4px", fontWeight: 600 }}>
+                    ${(earningTotals[member.id] ?? 0).toFixed(2)} earned
                   </div>
                 </div>
 
