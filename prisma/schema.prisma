@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Team {
+  id          String       @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime     @default(now())
+  members     TeamMember[]
+  projects    Project[]
+}
+
+model Member {
+  id        String       @id @default(cuid())
+  name      String
+  role      String
+  createdAt DateTime     @default(now())
+  teams     TeamMember[]
+}
+
+model TeamMember {
+  id         String      @id @default(cuid())
+  teamId     String
+  memberId   String
+  shadowOfId   String?
+  internalRate Float?
+  clientRate   Float?
+  team       Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  member     Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  shadowOf   TeamMember? @relation("ShadowOf", fields: [shadowOfId], references: [id])
+  shadows    TeamMember[] @relation("ShadowOf")
+
+  @@unique([teamId, memberId])
+}
+
+model Customer {
+  id        String    @id @default(cuid())
+  name      String
+  email     String?
+  address   String?
+  createdAt DateTime  @default(now())
+  projects  Project[]
+}
+
+model Project {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  status      String    @default("active")
+  deadline    DateTime?
+  createdAt   DateTime  @default(now())
+  customerId  String?
+  teamId      String?
+  customer    Customer? @relation(fields: [customerId], references: [id])
+  team        Team?     @relation(fields: [teamId], references: [id])
+}
