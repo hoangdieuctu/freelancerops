@@ -4,6 +4,7 @@ import CreateMemberForm from "./CreateMemberForm";
 import DeleteMemberButton from "./DeleteMemberButton";
 import AssignTeamButton from "./AssignTeamButton";
 import UnassignTeamButton from "./UnassignTeamButton";
+import ProfitMemberButton from "./ProfitMemberButton";
 import Link from "next/link";
 
 export default async function MembersPage() {
@@ -85,6 +86,7 @@ export default async function MembersPage() {
 
                 {/* Actions */}
                 <div style={{ display: "flex", gap: "8px", flexShrink: 0 }}>
+                  <ProfitMemberButton memberId={member.id} isProfitMember={member.isProfitMember} />
                   <AssignTeamButton memberId={member.id} availableTeams={availableTeams} />
                   <DeleteMemberButton memberId={member.id} memberName={member.name} />
                 </div>

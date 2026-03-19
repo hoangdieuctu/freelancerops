@@ -31,9 +31,11 @@ export default function Modal({
         backdropFilter: "blur(3px)",
         WebkitBackdropFilter: "blur(3px)",
         display: "flex",
-        alignItems: "center",
+        alignItems: "flex-start",
         justifyContent: "center",
         zIndex: 9999,
+        overflowY: "auto",
+        padding: "40px 0",
       }}
     >
       <div
@@ -46,6 +48,7 @@ export default function Modal({
           width: "460px",
           overflow: "hidden",
           position: "relative",
+          flexShrink: 0,
         }}
       >
         {/* Header */}

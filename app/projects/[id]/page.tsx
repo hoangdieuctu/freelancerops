@@ -1,21 +1,44 @@
 import { getProject } from "../../actions/projects";
 import { getTeams } from "../../actions/teams";
 import { getCustomers } from "../../actions/customers";
+import { getNextInvoiceNumber } from "../../actions/invoices";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import AssignPanel from "./AssignPanel";
 import DeleteProjectButton from "./DeleteProjectButton";
 import EditStatusForm from "./EditStatusForm";
 import EditProjectButton from "../EditProjectButton";
+import CreateInvoiceForm from "../../invoices/CreateInvoiceForm";
+
+const statusColor: Record<string, string> = {
+  draft: "var(--text-muted)",
+  sent: "var(--amber)",
+  paid: "var(--green)",
+};
 
 export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [project, teams, customers] = await Promise.all([
+  const [project, teams, customers, nextNumber] = await Promise.all([
     getProject(id),
     getTeams(),
     getCustomers(),
+    getNextInvoiceNumber(),
   ]);
   if (!project) notFound();
+
+  const formProjects = [{
+    id: project.id,
+    name: project.name,
+    team: project.team
+      ? {
+          members: project.team.members.map((tm) => ({
+            id: tm.id,
+            clientRate: tm.clientRate,
+            member: { name: tm.member.name, role: tm.member.role },
+          })),
+        }
+      : null,
+  }];
 
   return (
     <div style={{ padding: "40px 48px" }} className="fade-in">
@@ -93,7 +116,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
       </div>
 
       {/* Assign panel */}
-      <div className="card">
+      <div className="card" style={{ marginBottom: "32px" }}>
         <div className="display-font" style={{ fontSize: "18px", fontWeight: 700, letterSpacing: "0.03em", marginBottom: "24px" }}>
           ASSIGN TEAM & CUSTOMER
         </div>
@@ -104,6 +127,49 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
           currentTeamId={project.teamId ?? null}
           currentCustomerId={project.customerId ?? null}
         />
+      </div>
+
+      {/* Invoices */}
+      <div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+          <div style={{ fontSize: "10px", letterSpacing: "0.15em", color: "var(--text-muted)" }}>
+            INVOICES ({project.invoices.length})
+          </div>
+          <CreateInvoiceForm
+            projects={formProjects}
+            defaultProjectId={project.id}
+            defaultNumber={nextNumber}
+          />
+        </div>
+        {project.invoices.length === 0 ? (
+          <div style={{ color: "var(--text-muted)", padding: "24px", border: "1px dashed var(--border)", textAlign: "center", fontSize: "12px" }}>
+            No invoices yet.
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: "var(--border)" }}>
+            {project.invoices.map((inv) => {
+              const total = inv.lines.reduce((s, l) => s + l.subtotal, 0);
+              return (
+                <Link
+                  key={inv.id}
+                  href={`/invoices/${inv.id}`}
+                  style={{ background: "var(--surface)", padding: "16px 20px", textDecoration: "none", display: "flex", alignItems: "center", gap: "20px" }}
+                >
+                  <div className="display-font" style={{ fontSize: "13px", fontWeight: 700, color: "var(--amber)", minWidth: "90px" }}>{inv.number}</div>
+                  <div style={{ flex: 1, fontSize: "11px", color: "var(--text-muted)" }}>
+                    {new Date(inv.invoiceDate).toLocaleDateString()}
+                    {inv.dueDate && <> · Due {new Date(inv.dueDate).toLocaleDateString()}</>}
+                  </div>
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{inv.lines.length} line{inv.lines.length !== 1 ? "s" : ""}</div>
+                  <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--text)" }}>${total.toFixed(2)}</div>
+                  <span style={{ fontSize: "10px", letterSpacing: "0.1em", color: statusColor[inv.status] ?? "var(--text-muted)", minWidth: "36px", textAlign: "right" }}>
+                    {inv.status.toUpperCase()}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

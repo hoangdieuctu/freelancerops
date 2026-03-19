@@ -24,39 +24,28 @@ export default async function ProjectsPage() {
           No projects yet. Create your first project above.
         </div>
       ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>NAME</th>
-              <th>STATUS</th>
-              <th>CUSTOMER</th>
-              <th>TEAM</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {projects.map((p) => (
-              <tr key={p.id}>
-                <td style={{ color: "var(--text)", fontWeight: 500 }}>{p.name}</td>
-                <td><span className={`badge badge-${p.status}`}>{p.status}</span></td>
-                <td>{p.customer?.name ?? <span style={{ color: "var(--text-muted)" }}>—</span>}</td>
-                <td>{p.team?.name ?? <span style={{ color: "var(--text-muted)" }}>—</span>}</td>
-                <td style={{ textAlign: "right" }}>
-                  <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end", alignItems: "center" }}>
-                    <EditProjectButton project={p} />
-                    <Link
-                      href={`/projects/${p.id}`}
-                      style={{ fontSize: "12px", color: "var(--amber)", textDecoration: "none", padding: "4px 10px", border: "1px solid var(--amber-faint)" }}
-                    >
-                      Open →
-                    </Link>
-                    <DeleteProjectButton projectId={p.id} projectName={p.name} />
-                  </div>
-                </td>
-              </tr>
+        <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: "var(--border)" }}>
+          <div style={{ background: "var(--bg)", padding: "10px 24px", display: "grid", gridTemplateColumns: "1fr 100px 160px 160px 80px 120px", gap: "16px" }}>
+            {["NAME", "STATUS", "CUSTOMER", "TEAM", "INVOICES", ""].map((h) => (
+              <div key={h} style={{ fontSize: "10px", letterSpacing: "0.1em", color: "var(--text-muted)" }}>{h}</div>
             ))}
-          </tbody>
-        </table>
+          </div>
+          {projects.map((p) => (
+            <div key={p.id} style={{ background: "var(--surface)", display: "grid", gridTemplateColumns: "1fr 100px 160px 160px 80px 120px", gap: "16px", alignItems: "center" }}>
+              <Link href={`/projects/${p.id}`} style={{ display: "contents", textDecoration: "none" }}>
+                <div style={{ padding: "16px 0 16px 24px", fontSize: "13px", color: "var(--text)", fontWeight: 500 }}>{p.name}</div>
+                <div style={{ padding: "16px 0" }}><span className={`badge badge-${p.status}`}>{p.status}</span></div>
+                <div style={{ padding: "16px 0", fontSize: "12px", color: "var(--text-muted)" }}>{p.customer?.name ?? "—"}</div>
+                <div style={{ padding: "16px 0", fontSize: "12px", color: "var(--text-muted)" }}>{p.team?.name ?? "—"}</div>
+                <div style={{ padding: "16px 0", fontSize: "12px", color: "var(--text-muted)" }}>{p._count.invoices > 0 ? p._count.invoices : "—"}</div>
+              </Link>
+              <div style={{ padding: "16px 24px 16px 0", display: "flex", gap: "6px", justifyContent: "flex-end" }}>
+                <EditProjectButton project={p} />
+                <DeleteProjectButton projectId={p.id} projectName={p.name} />
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

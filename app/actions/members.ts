@@ -3,6 +3,16 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 
+export async function getProfitMember() {
+  return prisma.member.findFirst({ where: { isProfitMember: true } });
+}
+
+export async function setProfitMember(id: string) {
+  await prisma.member.updateMany({ data: { isProfitMember: false } });
+  await prisma.member.update({ where: { id }, data: { isProfitMember: true } });
+  revalidatePath("/members");
+}
+
 export async function getMembers() {
   return prisma.member.findMany({
     include: { teams: { include: { team: true } } },

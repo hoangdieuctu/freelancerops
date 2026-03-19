@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function getProjects() {
   return prisma.project.findMany({
-    include: { customer: true, team: { include: { members: { include: { member: true } } } } },
+    include: { customer: true, team: { include: { members: { include: { member: true } } } }, _count: { select: { invoices: true } } },
     orderBy: { createdAt: "desc" },
   });
 }
@@ -13,7 +13,11 @@ export async function getProjects() {
 export async function getProject(id: string) {
   return prisma.project.findUnique({
     where: { id },
-    include: { customer: true, team: { include: { members: { include: { member: true } } } } },
+    include: {
+      customer: true,
+      team: { include: { members: { include: { member: true } } } },
+      invoices: { include: { lines: true }, orderBy: { createdAt: "desc" } },
+    },
   });
 }
 

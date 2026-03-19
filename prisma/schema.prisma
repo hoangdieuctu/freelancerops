@@ -17,11 +17,12 @@ model Team {
 }
 
 model Member {
-  id        String       @id @default(cuid())
-  name      String
-  role      String
-  createdAt DateTime     @default(now())
-  teams     TeamMember[]
+  id             String       @id @default(cuid())
+  name           String
+  role           String
+  isProfitMember Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  teams          TeamMember[]
 }
 
 model TeamMember {
@@ -35,6 +36,7 @@ model TeamMember {
   member     Member      @relation(fields: [memberId], references: [id], onDelete: Cascade)
   shadowOf   TeamMember? @relation("ShadowOf", fields: [shadowOfId], references: [id])
   shadows    TeamMember[] @relation("ShadowOf")
+  invoiceLines InvoiceLine[]
 
   @@unique([teamId, memberId])
 }
@@ -59,4 +61,30 @@ model Project {
   teamId      String?
   customer    Customer? @relation(fields: [customerId], references: [id])
   team        Team?     @relation(fields: [teamId], references: [id])
+  invoices    Invoice[]
+}
+
+model Invoice {
+  id          String        @id @default(cuid())
+  number      String        @unique
+  projectId   String
+  status      String        @default("draft")
+  invoiceDate DateTime
+  dueDate     DateTime?
+  notes       String?
+  createdAt   DateTime      @default(now())
+  project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  lines       InvoiceLine[]
+}
+
+model InvoiceLine {
+  id           String  @id @default(cuid())
+  invoiceId    String
+  teamMemberId String
+  hoursSpent   Float
+  description  String?
+  clientRate   Float
+  subtotal     Float
+  invoice      Invoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  teamMember   TeamMember @relation(fields: [teamMemberId], references: [id])
 }

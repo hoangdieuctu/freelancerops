@@ -9,6 +9,7 @@ const nav = [
   { href: "/members", label: "Members" },
   { href: "/customers", label: "Customers" },
   { href: "/projects", label: "Projects" },
+  { href: "/invoices", label: "Invoices" },
 ];
 
 export default function Sidebar() {
