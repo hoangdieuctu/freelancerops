@@ -179,20 +179,12 @@ prisma/
 
 ## Data Model
 
-```
-Team ──< TeamMember >── Member
-          │
-          └── internalRate, clientRate, shadowOf?
-
-Customer ──< Project ──< Invoice ──< InvoiceLine ── TeamMember
-                              │
-                              └── Earning ── Member
-```
+![Data Model](docs/data-model.png)
 
 Key concepts:
 - **Shadow member** — A backup for a primary team member. Shares the primary's client rate but can have a different internal rate.
-- **Profit member** — A member flagged for margin tracking. The margin (client rate − internal rate) is recorded as a separate earning.
-- **Earnings** — Created when an invoice is marked paid. Tied to individual members via invoice lines.
+- **Profit member** — A member flagged for margin tracking (★). The margin (client rate − internal rate) is recorded as a separate earning.
+- **Earnings** — Created when an invoice is marked paid. `invoiceLineId` is null for margin earnings.
 
 ---
 
