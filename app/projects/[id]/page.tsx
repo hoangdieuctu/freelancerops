@@ -36,6 +36,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
           members: project.team.members.map((tm) => ({
             id: tm.id,
             clientRate: tm.clientRate,
+            shadowOfId: tm.shadowOfId,
             member: { name: tm.member.name, role: tm.member.role },
           })),
         }

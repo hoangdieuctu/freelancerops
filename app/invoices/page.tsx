@@ -20,6 +20,7 @@ export default async function InvoicesPage() {
           members: p.team.members.map((tm) => ({
             id: tm.id,
             clientRate: tm.clientRate,
+            shadowOfId: tm.shadowOfId,
             member: { name: tm.member.name, role: tm.member.role },
           })),
         }

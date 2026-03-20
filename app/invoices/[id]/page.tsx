@@ -19,10 +19,24 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   const [invoice, profitMember] = await Promise.all([getInvoice(id), getProfitMember()]);
   if (!invoice) notFound();
 
-  const total = invoice.lines.reduce((s, l) => s + l.subtotal, 0);
+  const subtotal = invoice.lines.reduce((s, l) => s + l.subtotal, 0);
+  const taxRate = (invoice.taxPercent ?? 0) / 100;
+  const total = taxRate > 0 ? subtotal / (1 - taxRate) : subtotal;
+  const taxAmount = total - subtotal;
   const hourlyLines = invoice.lines.filter(l => !l.isFixed);
-  const internalTotal = hourlyLines.reduce((s, l) => s + l.hoursSpent * (l.teamMember.internalRate ?? 0), 0);
-  const clientHourlyTotal = hourlyLines.reduce((s, l) => s + l.subtotal, 0);
+  const shadowLines = hourlyLines.filter(l => l.teamMember.shadowOfId);
+  const shadowHoursByTarget: Record<string, number> = {};
+  for (const sl of shadowLines) {
+    const targetId = sl.teamMember.shadowOfId!;
+    shadowHoursByTarget[targetId] = (shadowHoursByTarget[targetId] ?? 0) + sl.hoursSpent;
+  }
+  const internalTotal = hourlyLines.reduce((s, l) => {
+    const effectiveHours = l.teamMember.shadowOfId
+      ? l.hoursSpent
+      : Math.max(0, l.hoursSpent - (shadowHoursByTarget[l.teamMember.id] ?? 0));
+    return s + effectiveHours * (l.teamMember.internalRate ?? 0);
+  }, 0);
+  const clientHourlyTotal = hourlyLines.filter(l => !l.teamMember.shadowOfId).reduce((s, l) => s + l.subtotal, 0);
   const diff = clientHourlyTotal - internalTotal;
 
   return (
@@ -61,7 +75,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
             className="btn btn-ghost"
             style={{ textDecoration: "none" }}
           >
-            Export PDF
+            Export
           </a>
           <EditInvoiceButton invoice={{
             id: invoice.id,
@@ -69,6 +83,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
             invoiceDate: invoice.invoiceDate,
             dueDate: invoice.dueDate,
             notes: invoice.notes,
+            taxPercent: invoice.taxPercent,
             status: invoice.status,
             lines: invoice.lines.map((l) => ({
               id: l.id,
@@ -84,6 +99,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                     members: invoice.project.team.members.map((tm) => ({
                       id: tm.id,
                       clientRate: tm.clientRate,
+                      shadowOfId: tm.shadowOfId,
                       member: { name: tm.member.name, role: tm.member.role },
                     })),
                   }
@@ -138,6 +154,18 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
             </div>
           </div>
           <div style={{ width: "100%", borderTop: "1px solid var(--border)", paddingTop: "14px", display: "flex", flexDirection: "column", gap: "8px" }}>
+            {invoice.taxPercent != null && invoice.taxPercent > 0 && (
+              <>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>Subtotal</span>
+                  <span style={{ fontSize: "13px", color: "var(--text-dim)" }}>${subtotal.toFixed(2)}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>Tax ({invoice.taxPercent}%)</span>
+                  <span style={{ fontSize: "13px", color: "var(--text-dim)" }}>+${taxAmount.toFixed(2)}</span>
+                </div>
+              </>
+            )}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>Internal cost</span>
               <span style={{ fontSize: "13px", color: "var(--text-dim)", fontWeight: 600 }}>${internalTotal.toFixed(2)}</span>
@@ -154,7 +182,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
             {invoice.lines.length} member{invoice.lines.length !== 1 ? "s" : ""}
             {" · "}
-            {invoice.lines.filter(l => !l.isFixed).reduce((s, l) => s + l.hoursSpent, 0).toFixed(1)}h total
+            {invoice.lines.filter(l => !l.isFixed && !l.teamMember.shadowOfId).reduce((s, l) => s + l.hoursSpent, 0).toFixed(1)}h total
           </div>
         </div>
       </div>
@@ -180,7 +208,12 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
               style={{ background: "var(--surface)", padding: "14px 20px", display: "grid", gridTemplateColumns: "1fr 100px 100px 100px 100px", gap: "16px", alignItems: "center" }}
             >
               <div>
-                <div style={{ fontSize: "13px", color: "var(--text)", fontWeight: 500 }}>{line.teamMember.member.name}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ fontSize: "13px", color: "var(--text)", fontWeight: 500 }}>{line.teamMember.member.name}</span>
+                  {line.teamMember.shadowOfId && (
+                    <span style={{ fontSize: "9px", padding: "1px 6px", border: "1px solid var(--amber)", color: "var(--amber)", letterSpacing: "0.08em" }}>SHADOW</span>
+                  )}
+                </div>
                 <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>{line.teamMember.member.role}</div>
                 {line.description && (
                   <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "3px", fontStyle: "italic" }}>{line.description}</div>
@@ -201,12 +234,24 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           })}
           {/* Total row */}
           <div style={{ background: "var(--bg)", padding: "14px 20px", display: "grid", gridTemplateColumns: "1fr 100px 100px 100px 100px", gap: "16px" }}>
-            <div style={{ fontSize: "10px", letterSpacing: "0.1em", color: "var(--text-muted)" }}>TOTAL</div>
+            <div style={{ fontSize: "10px", letterSpacing: "0.1em", color: "var(--text-muted)" }}>SUBTOTAL</div>
             <div />
             <div style={{ fontSize: "12px", color: "var(--text-dim)", textAlign: "right" }}>
-              {invoice.lines.filter(l => !l.isFixed).reduce((s, l) => s + l.hoursSpent, 0).toFixed(1)}h
+              {invoice.lines.filter(l => !l.isFixed && !l.teamMember.shadowOfId).reduce((s, l) => s + l.hoursSpent, 0).toFixed(1)}h
             </div>
             <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-dim)", textAlign: "right" }}>${internalTotal.toFixed(2)}</div>
+            <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--text-dim)", textAlign: "right" }}>${subtotal.toFixed(2)}</div>
+          </div>
+          {invoice.taxPercent != null && invoice.taxPercent > 0 && (
+            <div style={{ background: "var(--bg)", padding: "8px 20px", display: "grid", gridTemplateColumns: "1fr 100px 100px 100px 100px", gap: "16px", borderTop: "1px solid var(--border)" }}>
+              <div style={{ fontSize: "10px", letterSpacing: "0.1em", color: "var(--text-muted)" }}>TAX ({invoice.taxPercent}%)</div>
+              <div /><div /><div />
+              <div style={{ fontSize: "13px", color: "var(--text-dim)", textAlign: "right" }}>+${taxAmount.toFixed(2)}</div>
+            </div>
+          )}
+          <div style={{ background: "var(--bg)", padding: "14px 20px", display: "grid", gridTemplateColumns: "1fr 100px 100px 100px 100px", gap: "16px", borderTop: "2px solid var(--border)" }}>
+            <div style={{ fontSize: "10px", letterSpacing: "0.1em", color: "var(--text-muted)" }}>TOTAL</div>
+            <div /><div /><div />
             <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--amber)", textAlign: "right" }}>${total.toFixed(2)}</div>
           </div>
         </div>

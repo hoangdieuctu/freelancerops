@@ -9,7 +9,7 @@ export async function getInvoices() {
       project: { include: { customer: true } },
       lines: true,
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: { invoiceDate: "desc" },
   });
 }
 
@@ -29,12 +29,13 @@ export async function getInvoice(id: string) {
 }
 
 export async function getNextInvoiceNumber() {
-  const last = await prisma.invoice.findFirst({ orderBy: { createdAt: "desc" } });
-  if (!last) return "INV-001";
-  const match = last.number.match(/(\d+)$/);
-  if (!match) return "INV-001";
-  const next = parseInt(match[1]) + 1;
-  return `INV-${String(next).padStart(3, "0")}`;
+  const all = await prisma.invoice.findMany({ select: { number: true } });
+  const max = all.reduce((highest, inv) => {
+    const match = inv.number.match(/(\d+)$/);
+    if (!match) return highest;
+    return Math.max(highest, parseInt(match[1]));
+  }, 0);
+  return `INV-${String(max + 1).padStart(3, "0")}`;
 }
 
 export async function createInvoice(data: {
@@ -43,6 +44,7 @@ export async function createInvoice(data: {
   invoiceDate: string;
   dueDate?: string;
   notes?: string;
+  taxPercent?: number;
   lines: { teamMemberId: string; hoursSpent: number; isFixed: boolean; description?: string; clientRate: number }[];
 }) {
   const invoice = await prisma.invoice.create({
@@ -52,6 +54,7 @@ export async function createInvoice(data: {
       invoiceDate: new Date(data.invoiceDate),
       dueDate: data.dueDate ? new Date(data.dueDate) : null,
       notes: data.notes || null,
+      taxPercent: data.taxPercent ?? null,
       lines: {
         create: data.lines.map((l) => ({
           teamMemberId: l.teamMemberId,
@@ -76,6 +79,7 @@ export async function updateInvoice(
     invoiceDate: string;
     dueDate?: string;
     notes?: string;
+    taxPercent?: number;
     lines: { teamMemberId: string; hoursSpent: number; isFixed: boolean; description?: string; clientRate: number }[];
   }
 ) {
@@ -91,6 +95,7 @@ export async function updateInvoice(
       invoiceDate: new Date(data.invoiceDate),
       dueDate: data.dueDate ? new Date(data.dueDate) : null,
       notes: data.notes || null,
+      taxPercent: data.taxPercent ?? null,
       lines: {
         create: data.lines.map((l) => ({
           teamMemberId: l.teamMemberId,
@@ -121,11 +126,28 @@ export async function updateInvoiceStatus(id: string, status: string) {
       include: { teamMember: true },
     });
 
+    // For shadowers: subtract shadow hours from their earning
+    const hourlyLines = lines.filter(l => !l.isFixed);
+    const shadowLines = hourlyLines.filter(l => l.teamMember.shadowOfId);
+    const shadowHoursByTarget: Record<string, number> = {};
+    for (const sl of shadowLines) {
+      const targetId = sl.teamMember.shadowOfId!;
+      shadowHoursByTarget[targetId] = (shadowHoursByTarget[targetId] ?? 0) + sl.hoursSpent;
+    }
+
     await prisma.earning.createMany({
       data: lines.map((line) => {
-        const amount = line.isFixed
-          ? line.subtotal
-          : line.hoursSpent * (line.teamMember.internalRate ?? 0);
+        let amount: number;
+        if (line.isFixed) {
+          amount = line.subtotal;
+        } else if (line.teamMember.shadowOfId) {
+          // Shadow member: full hours × internalRate
+          amount = line.hoursSpent * (line.teamMember.internalRate ?? 0);
+        } else {
+          // Shadower: subtract shadow hours
+          const effectiveHours = Math.max(0, line.hoursSpent - (shadowHoursByTarget[line.teamMember.id] ?? 0));
+          amount = effectiveHours * (line.teamMember.internalRate ?? 0);
+        }
         return {
           memberId: line.teamMember.memberId,
           invoiceId: id,
@@ -138,9 +160,13 @@ export async function updateInvoiceStatus(id: string, status: string) {
     // Margin earning for profit member (hourly lines only)
     const profitMember = await prisma.member.findFirst({ where: { isProfitMember: true } });
     if (profitMember) {
-      const hourlyLines = lines.filter(l => !l.isFixed);
-      const clientHourlyTotal = hourlyLines.reduce((s, l) => s + l.subtotal, 0);
-      const internalTotal = hourlyLines.reduce((s, l) => s + l.hoursSpent * (l.teamMember.internalRate ?? 0), 0);
+      const clientHourlyTotal = hourlyLines.filter(l => !l.teamMember.shadowOfId).reduce((s, l) => s + l.subtotal, 0);
+      const internalTotal = hourlyLines.reduce((s, l) => {
+        const effectiveHours = l.teamMember.shadowOfId
+          ? l.hoursSpent
+          : Math.max(0, l.hoursSpent - (shadowHoursByTarget[l.teamMember.id] ?? 0));
+        return s + effectiveHours * (l.teamMember.internalRate ?? 0);
+      }, 0);
       const margin = clientHourlyTotal - internalTotal;
       if (margin !== 0) {
         await prisma.earning.create({
@@ -150,6 +176,16 @@ export async function updateInvoiceStatus(id: string, status: string) {
     }
   }
 
+  revalidatePath("/invoices");
+  revalidatePath(`/invoices/${id}`);
+  return updated;
+}
+
+export async function revertInvoiceToSent(id: string) {
+  const invoice = await prisma.invoice.findUnique({ where: { id }, select: { status: true } });
+  if (invoice?.status !== "paid") throw new Error("Only paid invoices can be reverted.");
+  await prisma.earning.deleteMany({ where: { invoiceId: id } });
+  const updated = await prisma.invoice.update({ where: { id }, data: { status: "sent" } });
   revalidatePath("/invoices");
   revalidatePath(`/invoices/${id}`);
   return updated;

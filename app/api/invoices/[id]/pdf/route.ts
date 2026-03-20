@@ -141,8 +141,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   y -= 18 + 8;
 
   // ── Line items ────────────────────────────────────────────────────────────
-  const allFixed = invoice.lines.every(l => l.isFixed);
-  invoice.lines.forEach((line, i) => {
+  const visibleLines = invoice.lines.filter(l => !l.teamMember.shadowOfId);
+  const allFixed = visibleLines.every(l => l.isFixed);
+  visibleLines.forEach((line, i) => {
     const rowY = y - i * 28;
     const memberName = line.teamMember.member.name;
     const qty   = line.isFixed ? "—" : String(line.hoursSpent);
@@ -154,8 +155,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
     text(page, String(i + 1),  col.num.x,   rowY, 9, f.reg);
     text(page, memberName,      col.desc.x,  rowY, 9, f.bold);
-    if (line.description) {
-      text(page, line.description, col.desc.x, rowY - 11, 8, f.reg, c.gray);
+    const desc = line.description || line.teamMember.member.role;
+    if (desc) {
+      text(page, desc, col.desc.x, rowY - 11, 8, f.reg, c.gray);
     }
     if (!allFixed) {
       text(page, qty,           col.qty.x,   rowY, 9, f.reg);
@@ -164,19 +166,28 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     textRight(page, fmt(line.subtotal), M + CW, rowY, 9, f.reg);
   });
 
-  y -= invoice.lines.length * 28 + 12;
+  y -= visibleLines.length * 28 + 12;
 
   hline(page, M, y, CW);
   y -= 20;
 
   // ── Summary ───────────────────────────────────────────────────────────────
-  const total = invoice.lines.reduce((s, l) => s + l.subtotal, 0);
+  const subtotal = invoice.lines.reduce((s, l) => s + l.subtotal, 0);
+  const taxRate = (invoice.taxPercent ?? 0) / 100;
+  const total = taxRate > 0 ? subtotal / (1 - taxRate) : subtotal;
+  const taxAmount = total - subtotal;
   const sumX  = W - M - 180;
   const sumR  = W - M;
 
   text(page,      "Subtotal",                        sumX, y, 9, f.reg, c.gray);
-  textRight(page, fmt(total),                        sumR, y, 9, f.reg);
+  textRight(page, fmt(subtotal),                     sumR, y, 9, f.reg);
   y -= 14;
+
+  if (invoice.taxPercent != null && invoice.taxPercent > 0) {
+    text(page,      `Tax (${invoice.taxPercent}%)`,  sumX, y, 9, f.reg, c.gray);
+    textRight(page, fmt(taxAmount),                  sumR, y, 9, f.reg);
+    y -= 14;
+  }
 
   hline(page, sumX, y, 180, 0.5, c.divider);
   y -= 14;

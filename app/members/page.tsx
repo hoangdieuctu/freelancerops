@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 
-import { getMembers, getMemberEarningTotals } from "../actions/members";
+import { getMembers, getMemberEarningTotals, getMemberMarginTotals } from "../actions/members";
 import { getTeams } from "../actions/teams";
 import CreateMemberForm from "./CreateMemberForm";
 import DeleteMemberButton from "./DeleteMemberButton";
@@ -11,7 +11,7 @@ import EditMemberButton from "./EditMemberButton";
 import Link from "next/link";
 
 export default async function MembersPage() {
-  const [members, teams, earningTotals] = await Promise.all([getMembers(), getTeams(), getMemberEarningTotals()]);
+  const [members, teams, earningTotals, marginTotals] = await Promise.all([getMembers(), getTeams(), getMemberEarningTotals(), getMemberMarginTotals()]);
 
   return (
     <div style={{ padding: "40px 48px" }} className="fade-in">
@@ -60,6 +60,11 @@ export default async function MembersPage() {
                   <div style={{ fontSize: "11px", color: "var(--green)", marginTop: "4px", fontWeight: 600 }}>
                     ${(earningTotals[member.id] ?? 0).toFixed(2)} earned
                   </div>
+                  {member.isProfitMember && (marginTotals[member.id] ?? 0) > 0 && (
+                    <div style={{ fontSize: "11px", color: "var(--amber)", marginTop: "2px", fontWeight: 600 }}>
+                      ${(marginTotals[member.id] ?? 0).toFixed(2)} margin
+                    </div>
+                  )}
                   {member.email && (
                     <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>{member.email}</div>
                   )}

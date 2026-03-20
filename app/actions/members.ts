@@ -51,6 +51,15 @@ export async function getMemberEarningTotals(): Promise<Record<string, number>> 
   return Object.fromEntries(grouped.map((g) => [g.memberId, g._sum.amount ?? 0]));
 }
 
+export async function getMemberMarginTotals(): Promise<Record<string, number>> {
+  const grouped = await prisma.earning.groupBy({
+    by: ["memberId"],
+    where: { invoiceLineId: null },
+    _sum: { amount: true },
+  });
+  return Object.fromEntries(grouped.map((g) => [g.memberId, g._sum.amount ?? 0]));
+}
+
 export async function getProfitMember() {
   return prisma.member.findFirst({ where: { isProfitMember: true } });
 }

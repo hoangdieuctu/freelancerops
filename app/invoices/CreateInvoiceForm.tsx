@@ -8,6 +8,7 @@ import Modal from "../components/Modal";
 type TeamMember = {
   id: string;
   clientRate: number | null;
+  shadowOfId?: string | null;
   member: { name: string; role: string };
 };
 
@@ -34,6 +35,7 @@ export default function CreateInvoiceForm({
   const [fixedAmounts, setFixedAmounts] = useState<Record<string, string>>({});
   const [modes, setModes] = useState<Record<string, "hourly" | "fixed">>({});
   const [descriptions, setDescriptions] = useState<Record<string, string>>({});
+  const [taxPercent, setTaxPercent] = useState("");
   const router = useRouter();
 
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
@@ -51,6 +53,7 @@ export default function CreateInvoiceForm({
   }
 
   function getMemberTotal(tm: TeamMember): number {
+    if (tm.shadowOfId) return 0;
     if (getMode(tm.id) === "fixed") {
       return parseFloat(fixedAmounts[tm.id] ?? "0") || 0;
     }
@@ -64,6 +67,16 @@ export default function CreateInvoiceForm({
 
     const lines = members
       .map((tm) => {
+        if (tm.shadowOfId) {
+          // Shadow: hours only for earning tracking, no client contribution
+          return {
+            teamMemberId: tm.id,
+            hoursSpent: parseFloat(hours[tm.id] ?? "0") || 0,
+            isFixed: false,
+            description: descriptions[tm.id] || undefined,
+            clientRate: 0,
+          };
+        }
         if (getMode(tm.id) === "fixed") {
           const amount = parseFloat(fixedAmounts[tm.id] ?? "0") || 0;
           return {
@@ -82,7 +95,7 @@ export default function CreateInvoiceForm({
           clientRate: tm.clientRate ?? 0,
         };
       })
-      .filter((l) => l.hoursSpent > 0 && l.clientRate > 0);
+      .filter((l) => l.hoursSpent > 0 || l.clientRate > 0);
 
     await createInvoice({
       number: invoiceNumber,
@@ -90,6 +103,7 @@ export default function CreateInvoiceForm({
       invoiceDate: fd.get("invoiceDate") as string,
       dueDate: (fd.get("dueDate") as string) || undefined,
       notes: (fd.get("notes") as string) || undefined,
+      taxPercent: taxPercent ? parseInt(taxPercent) : undefined,
       lines,
     });
 
@@ -99,6 +113,7 @@ export default function CreateInvoiceForm({
     setFixedAmounts({});
     setModes({});
     setDescriptions({});
+    setTaxPercent("");
     router.refresh();
   }
 
@@ -108,11 +123,15 @@ export default function CreateInvoiceForm({
     setFixedAmounts({});
     setModes({});
     setDescriptions({});
+    setTaxPercent("");
     setSelectedProjectId(defaultProjectId ?? "");
     setInvoiceNumber(defaultNumber);
   }
 
-  const total = members.reduce((sum, tm) => sum + getMemberTotal(tm), 0);
+  const subtotal = members.reduce((sum, tm) => sum + getMemberTotal(tm), 0);
+  const taxRate = (parseInt(taxPercent) || 0) / 100;
+  const total = taxRate > 0 ? subtotal / (1 - taxRate) : subtotal;
+  const taxAmount = total - subtotal;
 
   const toggleStyle = (active: boolean) => ({
     fontSize: "10px",
@@ -193,14 +212,15 @@ export default function CreateInvoiceForm({
                             <div style={{ flex: 1 }}>
                               <div style={{ fontSize: "12px", color: "var(--text)" }}>{tm.member.name}</div>
                               <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>
-                                {tm.member.role}{mode === "hourly" && tm.clientRate != null ? ` · $${tm.clientRate.toFixed(2)}/h` : ""}
+                                {tm.member.role}{!tm.shadowOfId && mode === "hourly" && tm.clientRate != null ? ` · $${tm.clientRate.toFixed(2)}/h` : ""}
+                                {tm.shadowOfId && <span style={{ color: "var(--amber)", marginLeft: "4px" }}>shadow</span>}
                               </div>
                             </div>
                             <div style={{ display: "flex", gap: "4px" }}>
-                              <button type="button" style={toggleStyle(mode === "hourly")} onClick={() => setModes((m) => ({ ...m, [tm.id]: "hourly" }))}>H</button>
-                              <button type="button" style={toggleStyle(mode === "fixed")} onClick={() => setModes((m) => ({ ...m, [tm.id]: "fixed" }))}>$</button>
+                              {!tm.shadowOfId && <button type="button" style={toggleStyle(mode === "hourly")} onClick={() => setModes((m) => ({ ...m, [tm.id]: "hourly" }))}>H</button>}
+                              {!tm.shadowOfId && <button type="button" style={toggleStyle(mode === "fixed")} onClick={() => setModes((m) => ({ ...m, [tm.id]: "fixed" }))}>$</button>}
                             </div>
-                            {mode === "hourly" ? (
+                            {(tm.shadowOfId || mode === "hourly") ? (
                               <input
                                 type="number"
                                 min="0"
@@ -236,9 +256,35 @@ export default function CreateInvoiceForm({
                       );
                     })}
                   </div>
-                  <div style={{ display: "flex", justifyContent: "flex-end", padding: "8px 12px", borderTop: "2px solid var(--border)", marginTop: "1px" }}>
-                    <span style={{ fontSize: "13px", color: "var(--text-muted)", marginRight: "12px" }}>TOTAL</span>
-                    <span style={{ fontSize: "16px", fontWeight: 700, color: "var(--amber)" }}>${total.toFixed(2)}</span>
+                  <div style={{ borderTop: "2px solid var(--border)", marginTop: "1px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px" }}>
+                      <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>SUBTOTAL</span>
+                      <span style={{ fontSize: "13px", color: "var(--text-dim)" }}>${subtotal.toFixed(2)}</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 12px 8px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>TAX</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                          <input
+                            type="number"
+                            min="0"
+                            max="99"
+                            step="1"
+                            placeholder="0"
+                            value={taxPercent}
+                            onChange={(e) => setTaxPercent(e.target.value)}
+                            onBlur={(e) => setTaxPercent(e.target.value ? String(Math.round(parseFloat(e.target.value))) : "")}
+                            style={{ width: "56px", padding: "2px 6px", fontSize: "12px", textAlign: "right" }}
+                          />
+                          <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>%</span>
+                        </div>
+                      </div>
+                      <span style={{ fontSize: "12px", color: "var(--text-dim)" }}>+${taxAmount.toFixed(2)}</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", padding: "8px 12px", borderTop: "1px solid var(--border)" }}>
+                      <span style={{ fontSize: "13px", color: "var(--text-muted)", marginRight: "12px" }}>TOTAL</span>
+                      <span style={{ fontSize: "16px", fontWeight: 700, color: "var(--amber)" }}>${total.toFixed(2)}</span>
+                    </div>
                   </div>
                 </div>
               )}

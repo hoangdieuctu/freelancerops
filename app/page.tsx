@@ -4,16 +4,17 @@ import { getTeams } from "./actions/teams";
 import { getCustomers } from "./actions/customers";
 import { getProjects } from "./actions/projects";
 import { getInvoices } from "./actions/invoices";
-import { getMemberEarningTotals, getMembers } from "./actions/members";
+import { getMemberEarningTotals, getMemberMarginTotals, getMembers } from "./actions/members";
 import Link from "next/link";
 
 export default async function DashboardPage() {
-  const [teams, customers, projects, members, earningTotals, invoices] = await Promise.all([
+  const [teams, customers, projects, members, earningTotals, marginTotals, invoices] = await Promise.all([
     getTeams(),
     getCustomers(),
     getProjects(),
     getMembers(),
     getMemberEarningTotals(),
+    getMemberMarginTotals(),
     getInvoices(),
   ]);
 
@@ -21,10 +22,11 @@ export default async function DashboardPage() {
   const totalMembers = teams.reduce((sum, t) => sum + t.members.length, 0);
   const recentProjects = projects.slice(0, 5);
   const totalEarned = Object.values(earningTotals).reduce((s, v) => s + v, 0);
+  const totalMargin = Object.values(marginTotals).reduce((s, v) => s + v, 0);
   const unpaidInvoices = invoices.filter((inv) => inv.status !== "paid");
   const unpaidTotal = unpaidInvoices.reduce((s, inv) => s + inv.lines.reduce((ls, l) => ls + l.subtotal, 0), 0);
   const memberEarnings = members
-    .map((m) => ({ id: m.id, name: m.name, role: m.role, total: earningTotals[m.id] ?? 0 }))
+    .map((m) => ({ id: m.id, name: m.name, role: m.role, isProfitMember: m.isProfitMember, total: earningTotals[m.id] ?? 0, margin: marginTotals[m.id] ?? 0 }))
     .filter((m) => m.total > 0)
     .sort((a, b) => b.total - a.total);
 
@@ -135,6 +137,11 @@ export default async function DashboardPage() {
             <div className="display-font" style={{ fontSize: "40px", fontWeight: 800, color: "var(--green)", lineHeight: 1 }}>
               ${totalEarned.toFixed(2)}
             </div>
+            {totalMargin > 0 && (
+              <div style={{ fontSize: "11px", color: "var(--amber)", marginTop: "6px", fontWeight: 600 }}>
+                ${totalMargin.toFixed(2)} margin
+              </div>
+            )}
           </div>
           {memberEarnings.length === 0 ? (
             <div style={{ color: "var(--text-muted)", fontSize: "12px" }}>No paid invoices yet.</div>
@@ -155,7 +162,12 @@ export default async function DashboardPage() {
                     <div style={{ fontSize: "12px", color: "var(--text)", fontWeight: 500 }}>{m.name}</div>
                     <div style={{ fontSize: "10px", color: "var(--amber)", marginTop: "2px", letterSpacing: "0.08em" }}>{m.role.toUpperCase()}</div>
                   </div>
-                  <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--green)" }}>${m.total.toFixed(2)}</div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--green)" }}>${m.total.toFixed(2)}</div>
+                    {m.isProfitMember && m.margin > 0 && (
+                      <div style={{ fontSize: "11px", color: "var(--amber)", fontWeight: 600 }}>${m.margin.toFixed(2)} margin</div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
