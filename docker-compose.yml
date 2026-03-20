@@ -1,0 +1,14 @@
+services:
+  app:
+    image: hoangdieuctu/freelancerops:10.6
+    ports:
+      - "3000:3000"
+    volumes:
+      - db_data:/app/prisma
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    restart: unless-stopped
+
+volumes:
+  db_data:
