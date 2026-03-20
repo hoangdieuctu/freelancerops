@@ -141,7 +141,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   y -= 18 + 8;
 
   // ── Line items ────────────────────────────────────────────────────────────
-  const visibleLines = invoice.lines.filter(l => !l.teamMember.shadowOfId);
+  const visibleLines = invoice.lines.filter(l => !l.teamMember.shadowOfId && l.subtotal > 0);
   const allFixed = visibleLines.every(l => l.isFixed);
   visibleLines.forEach((line, i) => {
     const rowY = y - i * 28;
