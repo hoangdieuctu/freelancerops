@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { clearWorkLogsByProject, restoreWorkLogsByInvoice } from "./worklogs";
 
 export async function getInvoices() {
   return prisma.invoice.findMany({
@@ -115,10 +116,20 @@ export async function updateInvoice(
 }
 
 export async function updateInvoiceStatus(id: string, status: string) {
-  const invoice = await prisma.invoice.findUnique({ where: { id }, select: { status: true } });
+  const invoice = await prisma.invoice.findUnique({ where: { id }, select: { status: true, projectId: true, createdAt: true } });
   if (invoice?.status === "paid") throw new Error("Paid invoices cannot be changed.");
 
   const updated = await prisma.invoice.update({ where: { id }, data: { status } });
+
+  if (status === "sent") {
+    // Soft-clear: mark logs as cleared by this invoice (restorable if reverted to draft)
+    await clearWorkLogsByProject(invoice!.projectId, id, invoice!.createdAt);
+  }
+
+  if (status === "draft") {
+    // Restore logs that were soft-cleared by this invoice
+    await restoreWorkLogsByInvoice(id, invoice!.projectId);
+  }
 
   if (status === "paid") {
     const lines = await prisma.invoiceLine.findMany({
@@ -174,6 +185,9 @@ export async function updateInvoiceStatus(id: string, status: string) {
         });
       }
     }
+
+    // Hard-delete logs that were soft-cleared by this invoice — no restore after paid
+    await prisma.workLog.deleteMany({ where: { clearedByInvoiceId: id } });
   }
 
   revalidatePath("/invoices");

@@ -4,6 +4,7 @@ import { getProject } from "../../actions/projects";
 import { getTeams } from "../../actions/teams";
 import { getCustomers } from "../../actions/customers";
 import { getNextInvoiceNumber } from "../../actions/invoices";
+import { getWorkLogsByProject } from "../../actions/worklogs";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import AssignPanel from "./AssignPanel";
@@ -11,6 +12,7 @@ import DeleteProjectButton from "./DeleteProjectButton";
 import EditStatusForm from "./EditStatusForm";
 import EditProjectButton from "../EditProjectButton";
 import CreateInvoiceForm from "../../invoices/CreateInvoiceForm";
+import WorkLogPanel from "./WorkLogPanel";
 
 const statusColor: Record<string, string> = {
   draft: "var(--text-muted)",
@@ -20,11 +22,12 @@ const statusColor: Record<string, string> = {
 
 export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [project, teams, customers, nextNumber] = await Promise.all([
+  const [project, teams, customers, nextNumber, worklogs] = await Promise.all([
     getProject(id),
     getTeams(),
     getCustomers(),
     getNextInvoiceNumber(),
+    getWorkLogsByProject(id),
   ]);
   if (!project) notFound();
 
@@ -42,6 +45,47 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
         }
       : null,
   }];
+
+  // Sum work log hours per memberId, then map to teamMemberId for auto-fill.
+  // Shadow member's logged hours are also added to the parent's total.
+  const hoursByMemberId: Record<string, number> = {};
+  for (const log of worklogs) {
+    hoursByMemberId[log.memberId] = (hoursByMemberId[log.memberId] ?? 0) + log.hoursSpent;
+  }
+
+  // Build a map from TeamMember.id → memberId for shadow lookups
+  const tmById: Record<string, string> = {};
+  for (const tm of project.team?.members ?? []) {
+    tmById[tm.id] = tm.member.id;
+  }
+
+  const defaultHours: Record<string, number> = {};
+  for (const tm of project.team?.members ?? []) {
+    let logged = hoursByMemberId[tm.member.id] ?? 0;
+    // Add hours from any shadow members that shadow this TeamMember
+    for (const other of project.team?.members ?? []) {
+      if (other.shadowOfId === tm.id) {
+        logged += hoursByMemberId[other.member.id] ?? 0;
+      }
+    }
+    if (logged > 0) {
+      defaultHours[tm.id] = logged;
+    }
+  }
+
+  // Deduplicate by memberId in case a member appears more than once in the team
+  const seenMemberIds = new Set<string>();
+  const workLogMembers = (project.team?.members ?? [])
+    .filter((tm) => {
+      if (seenMemberIds.has(tm.member.id)) return false;
+      seenMemberIds.add(tm.member.id);
+      return true;
+    })
+    .map((tm) => ({
+      memberId: tm.member.id,
+      memberName: tm.member.name,
+      memberRole: tm.member.role,
+    }));
 
   return (
     <div style={{ padding: "40px 48px" }} className="fade-in">
@@ -132,6 +176,13 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
         />
       </div>
 
+      {/* Work log */}
+      <WorkLogPanel
+        projectId={project.id}
+        members={workLogMembers}
+        logs={worklogs}
+      />
+
       {/* Invoices */}
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
@@ -142,6 +193,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
             projects={formProjects}
             defaultProjectId={project.id}
             defaultNumber={nextNumber}
+            defaultHours={defaultHours}
           />
         </div>
         {project.invoices.length === 0 ? (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createInvoice } from "../actions/invoices";
 import { useRouter } from "next/navigation";
 import Modal from "../components/Modal";
@@ -22,16 +22,27 @@ export default function CreateInvoiceForm({
   projects,
   defaultProjectId,
   defaultNumber,
+  defaultHours,
 }: {
   projects: Project[];
   defaultProjectId?: string;
   defaultNumber: string;
+  defaultHours?: Record<string, number>;
 }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState(defaultProjectId ?? "");
   const [invoiceNumber, setInvoiceNumber] = useState(defaultNumber);
-  const [hours, setHours] = useState<Record<string, string>>({});
+  const [hours, setHours] = useState<Record<string, string>>(
+    Object.fromEntries(Object.entries(defaultHours ?? {}).map(([k, v]) => [k, String(v)]))
+  );
+
+  // Sync hours when defaultHours prop updates (after work log add/delete + router.refresh)
+  useEffect(() => {
+    if (!open) {
+      setHours(Object.fromEntries(Object.entries(defaultHours ?? {}).map(([k, v]) => [k, String(v)])));
+    }
+  }, [defaultHours, open]);
   const [fixedAmounts, setFixedAmounts] = useState<Record<string, string>>({});
   const [modes, setModes] = useState<Record<string, "hourly" | "fixed">>({});
   const [descriptions, setDescriptions] = useState<Record<string, string>>({});
@@ -109,7 +120,7 @@ export default function CreateInvoiceForm({
 
     setLoading(false);
     setOpen(false);
-    setHours({});
+    setHours(Object.fromEntries(Object.entries(defaultHours ?? {}).map(([k, v]) => [k, String(v)])));
     setFixedAmounts({});
     setModes({});
     setDescriptions({});
@@ -119,7 +130,7 @@ export default function CreateInvoiceForm({
 
   function handleClose() {
     setOpen(false);
-    setHours({});
+    setHours(Object.fromEntries(Object.entries(defaultHours ?? {}).map(([k, v]) => [k, String(v)])));
     setFixedAmounts({});
     setModes({});
     setDescriptions({});

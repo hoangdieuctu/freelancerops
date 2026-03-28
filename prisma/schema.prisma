@@ -25,6 +25,7 @@ model Member {
   createdAt      DateTime     @default(now())
   teams          TeamMember[]
   earnings       Earning[]
+  worklogs       WorkLog[]
 }
 
 model TeamMember {
@@ -64,6 +65,7 @@ model Project {
   customer    Customer? @relation(fields: [customerId], references: [id])
   team        Team?     @relation(fields: [teamId], references: [id])
   invoices    Invoice[]
+  worklogs    WorkLog[]
 }
 
 model Invoice {
@@ -79,6 +81,7 @@ model Invoice {
   project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
   lines       InvoiceLine[]
   earnings    Earning[]
+  clearedLogs WorkLog[]
 }
 
 model InvoiceLine {
@@ -103,4 +106,18 @@ model Earning {
   createdAt     DateTime   @default(now())
   member        Member     @relation(fields: [memberId], references: [id], onDelete: Cascade)
   invoice       Invoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+model WorkLog {
+  id                 String   @id @default(cuid())
+  projectId          String
+  memberId           String
+  hoursSpent         Float
+  description        String?
+  date               DateTime @default(now())
+  createdAt          DateTime @default(now())
+  clearedByInvoiceId String?
+  project            Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  member             Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  clearedByInvoice   Invoice? @relation(fields: [clearedByInvoiceId], references: [id], onDelete: SetNull)
 }
