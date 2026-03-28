@@ -30,17 +30,9 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 
-# Copy prisma schema, migrations, generated client, and seed database
+# Copy prisma schema and generated client
 COPY --from=builder /app/prisma/schema.prisma ./prisma/schema.prisma
-COPY --from=builder /app/prisma/migrations ./prisma/migrations
 COPY --from=builder /app/app/generated ./app/generated
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-
-# Copy entrypoint
-COPY entrypoint.sh ./entrypoint.sh
-RUN chmod +x ./entrypoint.sh
 
 # Create db directory and set permissions
 RUN mkdir -p /app/prisma && chown -R nextjs:nodejs /app
@@ -49,4 +41,4 @@ USER nextjs
 
 EXPOSE 3000
 
-CMD ["./entrypoint.sh"]
+CMD ["node", "server.js"]
