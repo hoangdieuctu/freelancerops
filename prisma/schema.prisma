@@ -121,3 +121,13 @@ model WorkLog {
   member             Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
   clearedByInvoice   Invoice? @relation(fields: [clearedByInvoiceId], references: [id], onDelete: SetNull)
 }
+
+model Settings {
+  id    String  @id @default("singleton")
+  smtpHost    String?
+  smtpPort    Int?
+  smtpUser    String?
+  smtpPass    String?
+  smtpFrom    String?
+  backupEmail String?
+}
