@@ -32,14 +32,13 @@ export default function Sidebar() {
     <aside
       style={{
         width: "220px",
-        minHeight: "100vh",
+        height: "100vh",
         background: "var(--surface2)",
         borderRight: "1px solid var(--border-bright)",
         display: "flex",
         flexDirection: "column",
-        position: "sticky",
-        top: 0,
-        zIndex: 10,
+        flexShrink: 0,
+        overflowY: "auto",
       }}
     >
       {/* Logo */}
@@ -117,7 +116,7 @@ export default function Sidebar() {
           </div>
         )}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>v1.0.8</div>
+          <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>v1.0.9</div>
           <Link
             href="/settings"
             title="Settings"

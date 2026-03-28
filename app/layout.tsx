@@ -14,10 +14,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full">
-      <body className="min-h-full flex noise-bg">
+    <html lang="en" style={{ height: "100%" }}>
+      <body style={{ height: "100%", display: "flex", margin: 0, overflow: "hidden" }} className="noise-bg">
         <Sidebar />
-        <main className="flex-1 min-h-screen overflow-auto">
+        <main style={{ flex: 1, overflowY: "auto" }}>
           {children}
         </main>
       </body>

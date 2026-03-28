@@ -12,7 +12,7 @@ export default async function CustomersPage() {
     <div style={{ padding: "40px 48px" }} className="fade-in">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "40px" }}>
         <div>
-          <div className="display-font" style={{ fontSize: "42px", fontWeight: 800, lineHeight: 1 }}>Customers</div>
+          <div className="display-font" style={{ fontSize: "42px", fontWeight: 800, lineHeight: 1 }}>CUSTOMERS</div>
           <div style={{ color: "var(--text-muted)", marginTop: "8px", fontSize: "13px" }}>
             {customers.length} client{customers.length !== 1 ? "s" : ""}
           </div>
