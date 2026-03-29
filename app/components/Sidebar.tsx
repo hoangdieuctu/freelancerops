@@ -116,7 +116,7 @@ export default function Sidebar() {
           </div>
         )}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>v1.0.11</div>
+          <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>v1.0.12</div>
           <Link
             href="/settings"
             title="Settings"

@@ -211,12 +211,16 @@ tr:hover td { background: var(--surface2); color: var(--text); }
   display: flex;
   flex-direction: column;
   gap: 18px;
+  overflow-y: auto;
+  flex: 1;
 }
 
 .modal-footer {
   display: flex;
   gap: 8px;
-  padding: 0 24px 24px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 .form-label {

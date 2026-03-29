@@ -49,8 +49,14 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
   // Sum work log hours per memberId, then map to teamMemberId for auto-fill.
   // Shadow member's logged hours are also added to the parent's total.
   const hoursByMemberId: Record<string, number> = {};
+  const extraHoursByMemberId: Record<string, number> = {};
   for (const log of worklogs) {
-    hoursByMemberId[log.memberId] = (hoursByMemberId[log.memberId] ?? 0) + log.hoursSpent;
+    if (!log.isExtra) {
+      hoursByMemberId[log.memberId] = (hoursByMemberId[log.memberId] ?? 0) + log.hoursSpent;
+    }
+    if (log.isExtra) {
+      extraHoursByMemberId[log.memberId] = (extraHoursByMemberId[log.memberId] ?? 0) + log.hoursSpent;
+    }
   }
 
   // Build a map from TeamMember.id → memberId for shadow lookups
@@ -60,16 +66,22 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
   }
 
   const defaultHours: Record<string, number> = {};
+  const defaultExtraHours: Record<string, number> = {};
   for (const tm of project.team?.members ?? []) {
     let logged = hoursByMemberId[tm.member.id] ?? 0;
+    let extra = extraHoursByMemberId[tm.member.id] ?? 0;
     // Add hours from any shadow members that shadow this TeamMember
     for (const other of project.team?.members ?? []) {
       if (other.shadowOfId === tm.id) {
         logged += hoursByMemberId[other.member.id] ?? 0;
+        extra += extraHoursByMemberId[other.member.id] ?? 0;
       }
     }
     if (logged > 0) {
       defaultHours[tm.id] = logged;
+    }
+    if (extra > 0) {
+      defaultExtraHours[tm.id] = extra;
     }
   }
 
@@ -194,6 +206,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
             defaultProjectId={project.id}
             defaultNumber={nextNumber}
             defaultHours={defaultHours}
+            defaultExtraHours={defaultExtraHours}
           />
         </div>
         {project.invoices.length === 0 ? (

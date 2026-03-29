@@ -115,6 +115,7 @@ model WorkLog {
   projectId   String
   memberId    String
   hoursSpent  Float
+  isExtra     Boolean  @default(false)
   description String?
   date        DateTime @default(now())
   createdAt   DateTime @default(now())

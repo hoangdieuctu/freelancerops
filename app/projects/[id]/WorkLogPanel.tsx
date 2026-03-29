@@ -8,6 +8,7 @@ type WorkLog = {
   id: string;
   memberId: string;
   hoursSpent: number;
+  isExtra: boolean;
   description: string | null;
   date: Date;
   invoiceId: string | null;
@@ -34,6 +35,7 @@ export default function WorkLogPanel({
   const [loading, setLoading] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState(members[0]?.memberId ?? "");
   const [hours, setHours] = useState("");
+  const [isExtra, setIsExtra] = useState(false);
   const [description, setDescription] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -43,10 +45,11 @@ export default function WorkLogPanel({
     const h = parseFloat(hours);
     if (!selectedMemberId || !h || h <= 0) return;
     setLoading(true);
-    await addWorkLog({ projectId, memberId: selectedMemberId, hoursSpent: h, description: description || undefined, date });
+    await addWorkLog({ projectId, memberId: selectedMemberId, hoursSpent: h, isExtra, description: description || undefined, date });
     setLoading(false);
     setAdding(false);
     setHours("");
+    setIsExtra(false);
     setDescription("");
     setDate(new Date().toISOString().split("T")[0]);
     router.refresh();
@@ -118,19 +121,30 @@ export default function WorkLogPanel({
               required
             />
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: "8px" }}>
+          <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
             <input
               type="text"
               placeholder="Description (optional)"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              style={{ fontSize: "12px" }}
+              style={{ fontSize: "12px", flex: 1 }}
             />
-            <button type="submit" className="btn btn-primary" disabled={loading} style={{ fontSize: "11px", padding: "6px 14px" }}>
-              {loading ? "Saving..." : "Save"}
-            </button>
+            <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", color: "var(--text-muted)", cursor: "pointer", whiteSpace: "nowrap" }}>
+              <input
+                type="checkbox"
+                checked={isExtra}
+                onChange={(e) => setIsExtra(e.target.checked)}
+                style={{ cursor: "pointer" }}
+              />
+              Extra hours
+            </label>
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
             <button type="button" className="btn btn-ghost" onClick={() => setAdding(false)} style={{ fontSize: "11px", padding: "6px 14px" }}>
               Cancel
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={loading} style={{ fontSize: "11px", padding: "6px 14px" }}>
+              {loading ? "Saving..." : "Save"}
             </button>
           </div>
         </form>
@@ -156,6 +170,11 @@ export default function WorkLogPanel({
                   {log.description && <> · <span style={{ fontStyle: "italic" }}>{log.description}</span></>}
                 </div>
               </div>
+              {log.isExtra && (
+                <span style={{ fontSize: "9px", padding: "2px 6px", border: "1px solid var(--amber)", color: "var(--amber)", opacity: 0.7 }}>
+                  Extra
+                </span>
+              )}
               <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
                 {new Date(log.date).toLocaleDateString()}
               </div>

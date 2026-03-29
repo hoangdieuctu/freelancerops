@@ -31,11 +31,10 @@ export default function Modal({
         backdropFilter: "blur(3px)",
         WebkitBackdropFilter: "blur(3px)",
         display: "flex",
-        alignItems: "flex-start",
+        alignItems: "center",
         justifyContent: "center",
         zIndex: 9999,
-        overflowY: "auto",
-        padding: "40px 0",
+        padding: "24px",
       }}
     >
       <div
@@ -45,7 +44,10 @@ export default function Modal({
           border: "1px solid var(--border)",
           borderRadius: "8px",
           boxShadow: "0 8px 32px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.08)",
-          width: "460px",
+          width: "860px",
+          maxHeight: "calc(100vh - 48px)",
+          display: "flex",
+          flexDirection: "column",
           overflow: "hidden",
           position: "relative",
           flexShrink: 0,

@@ -23,6 +23,7 @@ export async function addWorkLog(data: {
   projectId: string;
   memberId: string;
   hoursSpent: number;
+  isExtra?: boolean;
   description?: string;
   date?: string;
 }) {
@@ -31,6 +32,7 @@ export async function addWorkLog(data: {
       projectId: data.projectId,
       memberId: data.memberId,
       hoursSpent: data.hoursSpent,
+      isExtra: data.isExtra ?? false,
       description: data.description || null,
       date: data.date ? new Date(data.date) : new Date(),
     },
