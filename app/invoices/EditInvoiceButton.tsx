@@ -169,7 +169,7 @@ export default function EditInvoiceButton({ invoice }: { invoice: Invoice }) {
       <button className="btn btn-ghost" onClick={() => setOpen(true)}>Edit</button>
       {open && (
         <Modal title="Edit Invoice" onClose={() => setOpen(false)}>
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
             <div className="modal-body">
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                 <div>
