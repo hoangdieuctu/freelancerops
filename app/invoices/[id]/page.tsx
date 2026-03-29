@@ -188,7 +188,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
       </div>
 
       {/* Lines */}
-      <div>
+      <div style={{ marginBottom: "40px" }}>
         <div style={{ fontSize: "10px", letterSpacing: "0.15em", color: "var(--text-muted)", marginBottom: "16px" }}>INVOICE LINES</div>
         <div style={{ background: "var(--border)", display: "flex", flexDirection: "column", gap: "1px" }}>
           {/* Header */}
@@ -256,6 +256,43 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           </div>
         </div>
       </div>
+
+      {/* Work Logs */}
+      {invoice.workLogs.length > 0 && (
+        <div>
+          <div style={{ fontSize: "10px", letterSpacing: "0.15em", color: "var(--text-muted)", marginBottom: "16px" }}>
+            WORK LOGS ({invoice.workLogs.length})
+          </div>
+          <div style={{ background: "var(--border)", display: "flex", flexDirection: "column", gap: "1px" }}>
+            {invoice.workLogs.map((log) => (
+              <div
+                key={log.id}
+                style={{ background: "var(--surface)", padding: "10px 20px", display: "flex", alignItems: "center", gap: "16px" }}
+              >
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: "12px", color: "var(--text)" }}>{log.member.name}</div>
+                  <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>
+                    {log.member.role}
+                    {log.description && <> · <span style={{ fontStyle: "italic" }}>{log.description}</span></>}
+                  </div>
+                </div>
+                <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                  {new Date(log.date).toLocaleDateString()}
+                </div>
+                <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--amber)", minWidth: "48px", textAlign: "right" }}>
+                  {log.hoursSpent}h
+                </div>
+              </div>
+            ))}
+            <div style={{ background: "var(--bg)", padding: "10px 20px", display: "flex", justifyContent: "flex-end", gap: "16px" }}>
+              <span style={{ fontSize: "10px", letterSpacing: "0.1em", color: "var(--text-muted)" }}>TOTAL</span>
+              <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--amber)" }}>
+                {invoice.workLogs.reduce((s, l) => s + l.hoursSpent, 0).toFixed(1)}h
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

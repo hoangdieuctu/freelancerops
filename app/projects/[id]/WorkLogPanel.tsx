@@ -10,6 +10,7 @@ type WorkLog = {
   hoursSpent: number;
   description: string | null;
   date: Date;
+  invoiceId: string | null;
   member: { name: string; role: string };
 };
 
@@ -161,14 +162,20 @@ export default function WorkLogPanel({
               <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--amber)", minWidth: "48px", textAlign: "right" }}>
                 {log.hoursSpent}h
               </div>
-              <button
-                className="btn btn-ghost"
-                style={{ fontSize: "10px", padding: "3px 8px", color: "var(--red)" }}
-                onClick={() => handleDelete(log.id)}
-                disabled={deletingId === log.id}
-              >
-                {deletingId === log.id ? "..." : "×"}
-              </button>
+              {log.invoiceId ? (
+                <span style={{ fontSize: "9px", padding: "2px 6px", border: "1px solid var(--border)", color: "var(--text-muted)", letterSpacing: "0.06em" }}>
+                  INVOICED
+                </span>
+              ) : (
+                <button
+                  className="btn btn-ghost"
+                  style={{ fontSize: "10px", padding: "3px 8px", color: "var(--red)" }}
+                  onClick={() => handleDelete(log.id)}
+                  disabled={deletingId === log.id}
+                >
+                  {deletingId === log.id ? "..." : "×"}
+                </button>
+              )}
             </div>
           ))}
         </div>
