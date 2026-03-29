@@ -37,15 +37,18 @@ export default function CreateInvoiceForm({
     Object.fromEntries(Object.entries(defaultHours ?? {}).map(([k, v]) => [k, String(v)]))
   );
 
-  // Sync hours when defaultHours prop updates (after work log add/delete + router.refresh)
   useEffect(() => {
     if (!open) {
       setHours(Object.fromEntries(Object.entries(defaultHours ?? {}).map(([k, v]) => [k, String(v)])));
     }
   }, [defaultHours, open]);
+
   const [fixedAmounts, setFixedAmounts] = useState<Record<string, string>>({});
   const [modes, setModes] = useState<Record<string, "hourly" | "fixed">>({});
   const [descriptions, setDescriptions] = useState<Record<string, string>>({});
+  const [extraHours, setExtraHours] = useState<Record<string, string>>({});
+  const [extraAmounts, setExtraAmounts] = useState<Record<string, string>>({});
+  const [extraOpen, setExtraOpen] = useState<Record<string, boolean>>({});
   const [taxPercent, setTaxPercent] = useState("");
   const router = useRouter();
 
@@ -57,6 +60,9 @@ export default function CreateInvoiceForm({
     setHours({});
     setFixedAmounts({});
     setModes({});
+    setExtraHours({});
+    setExtraAmounts({});
+    setExtraOpen({});
   }
 
   function getMode(tmId: string): "hourly" | "fixed" {
@@ -66,9 +72,13 @@ export default function CreateInvoiceForm({
   function getMemberTotal(tm: TeamMember): number {
     if (tm.shadowOfId) return 0;
     if (getMode(tm.id) === "fixed") {
-      return parseFloat(fixedAmounts[tm.id] ?? "0") || 0;
+      const base = parseFloat(fixedAmounts[tm.id] ?? "0") || 0;
+      const extra = parseFloat(extraAmounts[tm.id] ?? "0") || 0;
+      return base + extra;
     }
-    return (parseFloat(hours[tm.id] ?? "0") || 0) * (tm.clientRate ?? 0);
+    const baseH = parseFloat(hours[tm.id] ?? "0") || 0;
+    const extraH = parseFloat(extraHours[tm.id] ?? "0") || 0;
+    return (baseH + extraH) * (tm.clientRate ?? 0);
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -79,7 +89,6 @@ export default function CreateInvoiceForm({
     const lines = members
       .map((tm) => {
         if (tm.shadowOfId) {
-          // Shadow: hours only for earning tracking, no client contribution
           return {
             teamMemberId: tm.id,
             hoursSpent: parseFloat(hours[tm.id] ?? "0") || 0,
@@ -96,6 +105,7 @@ export default function CreateInvoiceForm({
             isFixed: true,
             description: descriptions[tm.id] || undefined,
             clientRate: amount,
+            extraAmount: parseFloat(extraAmounts[tm.id] ?? "0") || 0,
           };
         }
         return {
@@ -104,6 +114,7 @@ export default function CreateInvoiceForm({
           isFixed: false,
           description: descriptions[tm.id] || undefined,
           clientRate: tm.clientRate ?? 0,
+          extraHours: parseFloat(extraHours[tm.id] ?? "0") || 0,
         };
       })
       .filter((l) => l.hoursSpent > 0 || l.clientRate > 0);
@@ -124,6 +135,9 @@ export default function CreateInvoiceForm({
     setFixedAmounts({});
     setModes({});
     setDescriptions({});
+    setExtraHours({});
+    setExtraAmounts({});
+    setExtraOpen({});
     setTaxPercent("");
     router.refresh();
   }
@@ -134,6 +148,9 @@ export default function CreateInvoiceForm({
     setFixedAmounts({});
     setModes({});
     setDescriptions({});
+    setExtraHours({});
+    setExtraAmounts({});
+    setExtraOpen({});
     setTaxPercent("");
     setSelectedProjectId(defaultProjectId ?? "");
     setInvoiceNumber(defaultNumber);
@@ -217,6 +234,7 @@ export default function CreateInvoiceForm({
                   <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: "var(--border)" }}>
                     {members.map((tm) => {
                       const mode = getMode(tm.id);
+                      const isExtraOpen = extraOpen[tm.id] ?? false;
                       return (
                         <div key={tm.id} style={{ background: "var(--bg)", padding: "10px 12px", display: "flex", flexDirection: "column", gap: "6px" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -263,6 +281,45 @@ export default function CreateInvoiceForm({
                             onChange={(e) => setDescriptions((d) => ({ ...d, [tm.id]: e.target.value }))}
                             style={{ fontSize: "11px", padding: "4px 8px", color: "var(--text-muted)" }}
                           />
+                          {!tm.shadowOfId && (
+                            <div>
+                              <button
+                                type="button"
+                                onClick={() => setExtraOpen((o) => ({ ...o, [tm.id]: !o[tm.id] }))}
+                                style={{ fontSize: "10px", color: "var(--text-muted)", background: "none", border: "none", padding: "0", cursor: "pointer", textDecoration: "underline" }}
+                              >
+                                {isExtraOpen ? "− remove extra" : "+ add extra"}
+                              </button>
+                              {isExtraOpen && (
+                                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "6px" }}>
+                                  <span style={{ fontSize: "10px", color: "var(--text-muted)", flex: 1 }}>
+                                    Extra {mode === "hourly" ? "hours" : "amount"} (client only, counts as margin)
+                                  </span>
+                                  {mode === "hourly" ? (
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="0.5"
+                                      placeholder="0"
+                                      value={extraHours[tm.id] ?? ""}
+                                      onChange={(e) => setExtraHours((h) => ({ ...h, [tm.id]: e.target.value }))}
+                                      style={{ width: "72px", padding: "4px 8px", fontSize: "13px", textAlign: "right", borderColor: "var(--amber)", opacity: 0.7 }}
+                                    />
+                                  ) : (
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      placeholder="0.00"
+                                      value={extraAmounts[tm.id] ?? ""}
+                                      onChange={(e) => setExtraAmounts((a) => ({ ...a, [tm.id]: e.target.value }))}
+                                      style={{ width: "88px", padding: "4px 8px", fontSize: "13px", textAlign: "right", borderColor: "var(--amber)", opacity: 0.7 }}
+                                    />
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })}

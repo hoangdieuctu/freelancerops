@@ -92,6 +92,8 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
               isFixed: l.isFixed,
               description: l.description,
               clientRate: l.clientRate,
+              extraHours: l.extraHours,
+              extraAmount: l.extraAmount,
             })),
             project: {
               team: invoice.project.team
@@ -182,7 +184,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
             {invoice.lines.length} member{invoice.lines.length !== 1 ? "s" : ""}
             {" · "}
-            {invoice.lines.filter(l => !l.isFixed && !l.teamMember.shadowOfId).reduce((s, l) => s + l.hoursSpent, 0).toFixed(1)}h total
+            {invoice.lines.filter(l => !l.isFixed && !l.teamMember.shadowOfId).reduce((s, l) => s + l.hoursSpent + l.extraHours, 0).toFixed(1)}h total
           </div>
         </div>
       </div>
@@ -223,7 +225,13 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                 {isFixed ? "—" : `$${line.clientRate.toFixed(2)}/h`}
               </div>
               <div style={{ fontSize: "12px", color: "var(--text-dim)", textAlign: "right" }}>
-                {isFixed ? "—" : `${line.hoursSpent}h`}
+                {isFixed ? "—" : `${line.hoursSpent + line.extraHours}h`}
+                {!isFixed && line.extraHours > 0 && (
+                  <div style={{ fontSize: "9px", color: "var(--amber)", marginTop: "2px" }}>+{line.extraHours}h extra</div>
+                )}
+                {isFixed && line.extraAmount > 0 && (
+                  <div style={{ fontSize: "9px", color: "var(--amber)", marginTop: "2px" }}>+${line.extraAmount.toFixed(2)} extra</div>
+                )}
               </div>
               <div style={{ fontSize: "12px", color: "var(--text-dim)", textAlign: "right" }}>
                 ${internalAmount.toFixed(2)}
@@ -237,7 +245,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
             <div style={{ fontSize: "10px", letterSpacing: "0.1em", color: "var(--text-muted)" }}>SUBTOTAL</div>
             <div />
             <div style={{ fontSize: "12px", color: "var(--text-dim)", textAlign: "right" }}>
-              {invoice.lines.filter(l => !l.isFixed && !l.teamMember.shadowOfId).reduce((s, l) => s + l.hoursSpent, 0).toFixed(1)}h
+              {invoice.lines.filter(l => !l.isFixed && !l.teamMember.shadowOfId).reduce((s, l) => s + l.hoursSpent + l.extraHours, 0).toFixed(1)}h
             </div>
             <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-dim)", textAlign: "right" }}>${internalTotal.toFixed(2)}</div>
             <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--text-dim)", textAlign: "right" }}>${subtotal.toFixed(2)}</div>

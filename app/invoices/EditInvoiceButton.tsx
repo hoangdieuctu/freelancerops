@@ -27,6 +27,8 @@ type Invoice = {
     isFixed: boolean;
     description: string | null;
     clientRate: number;
+    extraHours: number;
+    extraAmount: number;
   }[];
   project: {
     team: { members: TeamMember[] } | null;
@@ -44,14 +46,25 @@ export default function EditInvoiceButton({ invoice }: { invoice: Invoice }) {
   const initialFixedAmounts: Record<string, string> = {};
   const initialModes: Record<string, "hourly" | "fixed"> = {};
   const initialDescriptions: Record<string, string> = {};
+  const initialExtraHours: Record<string, string> = {};
+  const initialExtraAmounts: Record<string, string> = {};
+  const initialExtraOpen: Record<string, boolean> = {};
 
   for (const line of invoice.lines) {
     if (line.isFixed) {
       initialModes[line.teamMemberId] = "fixed";
       initialFixedAmounts[line.teamMemberId] = String(line.clientRate);
+      if (line.extraAmount > 0) {
+        initialExtraAmounts[line.teamMemberId] = String(line.extraAmount);
+        initialExtraOpen[line.teamMemberId] = true;
+      }
     } else {
       initialModes[line.teamMemberId] = "hourly";
       initialHours[line.teamMemberId] = String(line.hoursSpent);
+      if (line.extraHours > 0) {
+        initialExtraHours[line.teamMemberId] = String(line.extraHours);
+        initialExtraOpen[line.teamMemberId] = true;
+      }
     }
     initialDescriptions[line.teamMemberId] = line.description ?? "";
   }
@@ -60,6 +73,9 @@ export default function EditInvoiceButton({ invoice }: { invoice: Invoice }) {
   const [fixedAmounts, setFixedAmounts] = useState<Record<string, string>>(initialFixedAmounts);
   const [modes, setModes] = useState<Record<string, "hourly" | "fixed">>(initialModes);
   const [descriptions, setDescriptions] = useState<Record<string, string>>(initialDescriptions);
+  const [extraHours, setExtraHours] = useState<Record<string, string>>(initialExtraHours);
+  const [extraAmounts, setExtraAmounts] = useState<Record<string, string>>(initialExtraAmounts);
+  const [extraOpen, setExtraOpen] = useState<Record<string, boolean>>(initialExtraOpen);
   const [taxPercent, setTaxPercent] = useState(invoice.taxPercent != null ? String(invoice.taxPercent) : "");
 
   if (invoice.status !== "draft") return null;
@@ -71,9 +87,13 @@ export default function EditInvoiceButton({ invoice }: { invoice: Invoice }) {
   function getMemberTotal(tm: TeamMember): number {
     if (tm.shadowOfId) return 0;
     if (getMode(tm.id) === "fixed") {
-      return parseFloat(fixedAmounts[tm.id] ?? "0") || 0;
+      const base = parseFloat(fixedAmounts[tm.id] ?? "0") || 0;
+      const extra = parseFloat(extraAmounts[tm.id] ?? "0") || 0;
+      return base + extra;
     }
-    return (parseFloat(hours[tm.id] ?? "0") || 0) * (tm.clientRate ?? 0);
+    const baseH = parseFloat(hours[tm.id] ?? "0") || 0;
+    const extraH = parseFloat(extraHours[tm.id] ?? "0") || 0;
+    return (baseH + extraH) * (tm.clientRate ?? 0);
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -100,6 +120,7 @@ export default function EditInvoiceButton({ invoice }: { invoice: Invoice }) {
             isFixed: true,
             description: descriptions[tm.id] || undefined,
             clientRate: amount,
+            extraAmount: parseFloat(extraAmounts[tm.id] ?? "0") || 0,
           };
         }
         return {
@@ -108,6 +129,7 @@ export default function EditInvoiceButton({ invoice }: { invoice: Invoice }) {
           isFixed: false,
           description: descriptions[tm.id] || undefined,
           clientRate: tm.clientRate ?? 0,
+          extraHours: parseFloat(extraHours[tm.id] ?? "0") || 0,
         };
       })
       .filter((l) => l.hoursSpent > 0 || l.clientRate > 0);
@@ -197,6 +219,7 @@ export default function EditInvoiceButton({ invoice }: { invoice: Invoice }) {
                   <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: "var(--border)" }}>
                     {members.map((tm) => {
                       const mode = getMode(tm.id);
+                      const isExtraOpen = extraOpen[tm.id] ?? false;
                       return (
                         <div key={tm.id} style={{ background: "var(--bg)", padding: "10px 12px", display: "flex", flexDirection: "column", gap: "6px" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -243,6 +266,45 @@ export default function EditInvoiceButton({ invoice }: { invoice: Invoice }) {
                             onChange={(e) => setDescriptions((d) => ({ ...d, [tm.id]: e.target.value }))}
                             style={{ fontSize: "11px", padding: "4px 8px", color: "var(--text-muted)" }}
                           />
+                          {!tm.shadowOfId && (
+                            <div>
+                              <button
+                                type="button"
+                                onClick={() => setExtraOpen((o) => ({ ...o, [tm.id]: !o[tm.id] }))}
+                                style={{ fontSize: "10px", color: "var(--text-muted)", background: "none", border: "none", padding: "0", cursor: "pointer", textDecoration: "underline" }}
+                              >
+                                {isExtraOpen ? "− remove extra" : "+ add extra"}
+                              </button>
+                              {isExtraOpen && (
+                                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "6px" }}>
+                                  <span style={{ fontSize: "10px", color: "var(--text-muted)", flex: 1 }}>
+                                    Extra {mode === "hourly" ? "hours" : "amount"} (client only, counts as margin)
+                                  </span>
+                                  {mode === "hourly" ? (
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="0.5"
+                                      placeholder="0"
+                                      value={extraHours[tm.id] ?? ""}
+                                      onChange={(e) => setExtraHours((h) => ({ ...h, [tm.id]: e.target.value }))}
+                                      style={{ width: "72px", padding: "4px 8px", fontSize: "13px", textAlign: "right", borderColor: "var(--amber)", opacity: 0.7 }}
+                                    />
+                                  ) : (
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      step="0.01"
+                                      placeholder="0.00"
+                                      value={extraAmounts[tm.id] ?? ""}
+                                      onChange={(e) => setExtraAmounts((a) => ({ ...a, [tm.id]: e.target.value }))}
+                                      style={{ width: "88px", padding: "4px 8px", fontSize: "13px", textAlign: "right", borderColor: "var(--amber)", opacity: 0.7 }}
+                                    />
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })}

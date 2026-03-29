@@ -146,7 +146,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   visibleLines.forEach((line, i) => {
     const rowY = y - i * 28;
     const memberName = line.teamMember.member.name;
-    const qty   = line.isFixed ? "—" : String(line.hoursSpent);
+    const qty   = line.isFixed ? "—" : String(line.hoursSpent + line.extraHours);
     const price = line.isFixed ? "—" : fmt(line.clientRate);
 
     if (i % 2 === 1) {

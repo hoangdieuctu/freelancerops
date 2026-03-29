@@ -49,7 +49,7 @@ export async function createInvoice(data: {
   dueDate?: string;
   notes?: string;
   taxPercent?: number;
-  lines: { teamMemberId: string; hoursSpent: number; isFixed: boolean; description?: string; clientRate: number }[];
+  lines: { teamMemberId: string; hoursSpent: number; isFixed: boolean; description?: string; clientRate: number; extraHours?: number; extraAmount?: number }[];
 }) {
   const invoice = await prisma.invoice.create({
     data: {
@@ -60,14 +60,23 @@ export async function createInvoice(data: {
       notes: data.notes || null,
       taxPercent: data.taxPercent ?? null,
       lines: {
-        create: data.lines.map((l) => ({
-          teamMemberId: l.teamMemberId,
-          hoursSpent: l.hoursSpent,
-          isFixed: l.isFixed,
-          description: l.description || null,
-          clientRate: l.clientRate,
-          subtotal: l.hoursSpent * l.clientRate,
-        })),
+        create: data.lines.map((l) => {
+          const extraH = l.extraHours ?? 0;
+          const extraA = l.extraAmount ?? 0;
+          const subtotal = l.isFixed
+            ? l.clientRate + extraA
+            : (l.hoursSpent + extraH) * l.clientRate;
+          return {
+            teamMemberId: l.teamMemberId,
+            hoursSpent: l.hoursSpent,
+            isFixed: l.isFixed,
+            description: l.description || null,
+            clientRate: l.clientRate,
+            subtotal,
+            extraHours: extraH,
+            extraAmount: extraA,
+          };
+        }),
       },
     },
   });
@@ -91,7 +100,7 @@ export async function updateInvoice(
     dueDate?: string;
     notes?: string;
     taxPercent?: number;
-    lines: { teamMemberId: string; hoursSpent: number; isFixed: boolean; description?: string; clientRate: number }[];
+    lines: { teamMemberId: string; hoursSpent: number; isFixed: boolean; description?: string; clientRate: number; extraHours?: number; extraAmount?: number }[];
   }
 ) {
   const invoice = await prisma.invoice.findUnique({ where: { id }, select: { status: true, projectId: true } });
@@ -108,14 +117,23 @@ export async function updateInvoice(
       notes: data.notes || null,
       taxPercent: data.taxPercent ?? null,
       lines: {
-        create: data.lines.map((l) => ({
-          teamMemberId: l.teamMemberId,
-          hoursSpent: l.hoursSpent,
-          isFixed: l.isFixed,
-          description: l.description || null,
-          clientRate: l.clientRate,
-          subtotal: l.hoursSpent * l.clientRate,
-        })),
+        create: data.lines.map((l) => {
+          const extraH = l.extraHours ?? 0;
+          const extraA = l.extraAmount ?? 0;
+          const subtotal = l.isFixed
+            ? l.clientRate + extraA
+            : (l.hoursSpent + extraH) * l.clientRate;
+          return {
+            teamMemberId: l.teamMemberId,
+            hoursSpent: l.hoursSpent,
+            isFixed: l.isFixed,
+            description: l.description || null,
+            clientRate: l.clientRate,
+            subtotal,
+            extraHours: extraH,
+            extraAmount: extraA,
+          };
+        }),
       },
     },
   });

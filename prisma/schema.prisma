@@ -93,6 +93,8 @@ model InvoiceLine {
   description  String?
   clientRate   Float
   subtotal     Float
+  extraHours   Float   @default(0)
+  extraAmount  Float   @default(0)
   invoice      Invoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   teamMember   TeamMember @relation(fields: [teamMemberId], references: [id])
 }
