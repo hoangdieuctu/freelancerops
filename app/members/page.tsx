@@ -103,7 +103,7 @@ export default async function MembersPage() {
                 {/* Actions */}
                 <div style={{ display: "flex", gap: "8px", flexShrink: 0 }}>
                   <ProfitMemberButton memberId={member.id} isProfitMember={member.isProfitMember} />
-                  <EditMemberButton memberId={member.id} name={member.name} role={member.role} email={member.email} />
+                  <EditMemberButton memberId={member.id} name={member.name} role={member.role} email={member.email} address={member.address} />
                   <AssignTeamButton memberId={member.id} availableTeams={availableTeams} />
                   <DeleteMemberButton memberId={member.id} memberName={member.name} />
                 </div>

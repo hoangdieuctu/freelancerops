@@ -21,6 +21,7 @@ model Member {
   name           String
   role           String
   email          String?
+  address        String?
   isProfitMember Boolean      @default(false)
   createdAt      DateTime     @default(now())
   teams          TeamMember[]

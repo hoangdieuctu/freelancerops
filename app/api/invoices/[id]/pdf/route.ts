@@ -91,23 +91,31 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   text(page, "BILL TO", toX, y, 8, f.bold, c.blue);
   y -= 14;
 
+  const nameRowY = y; // anchor for both columns
+
   // From: profit member
-  text(page, profitMember?.name ?? "", fromX, y, 10, f.bold);
-  y -= 14;
+  let fromY = nameRowY;
+  text(page, profitMember?.name ?? "", fromX, fromY, 10, f.bold);
+  fromY -= 14;
   if (profitMember?.email) {
-    text(page, profitMember.email, fromX, y, 9, f.reg, c.gray);
-    y -= 13;
+    text(page, profitMember.email, fromX, fromY, 9, f.reg, c.gray);
+    fromY -= 13;
+  }
+  if (profitMember?.address) {
+    for (const line of profitMember.address.split(/[\n,]/).map(s => s.trim()).filter(Boolean)) {
+      text(page, line, fromX, fromY, 9, f.reg, c.gray);
+      fromY -= 13;
+    }
   }
 
-  // Bill To: customer — compute max lines for alignment
+  // Bill To: customer — anchored to same nameRowY
   const cust = invoice.project.customer;
   const billLines: string[] = [];
   if (cust?.name)    billLines.push(cust.name);
   if (cust?.address) cust.address.split(/[\n,]/).map(s => s.trim()).filter(Boolean).forEach(l => billLines.push(l));
   if (cust?.email)   billLines.push(cust.email);
 
-  // Draw bill-to starting from same y as From name
-  let toY = y + 14; // reset to name row
+  let toY = nameRowY;
   text(page, billLines[0] ?? "", toX, toY, 10, f.bold);
   toY -= 14;
   for (const l of billLines.slice(1)) {
@@ -116,9 +124,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   }
 
   // Advance y past both columns
-  const fromEndY = y;
-  const toEndY   = toY;
-  y = Math.min(fromEndY, toEndY) - 20;
+  y = Math.min(fromY, toY) - 20;
 
   hline(page, M, y, CW);
   y -= 20;

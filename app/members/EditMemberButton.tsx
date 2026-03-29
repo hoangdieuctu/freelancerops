@@ -5,7 +5,7 @@ import { updateMember } from "../actions/members";
 import { useRouter } from "next/navigation";
 import Modal from "../components/Modal";
 
-export default function EditMemberButton({ memberId, name, role, email }: { memberId: string; name: string; role: string; email?: string | null }) {
+export default function EditMemberButton({ memberId, name, role, email, address }: { memberId: string; name: string; role: string; email?: string | null; address?: string | null }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -18,6 +18,7 @@ export default function EditMemberButton({ memberId, name, role, email }: { memb
       name: fd.get("name") as string,
       role: fd.get("role") as string,
       email: (fd.get("email") as string) || undefined,
+      address: (fd.get("address") as string) || undefined,
     });
     setLoading(false);
     setOpen(false);
@@ -42,6 +43,10 @@ export default function EditMemberButton({ memberId, name, role, email }: { memb
               <div>
                 <label className="form-label">Email</label>
                 <input name="email" type="email" defaultValue={email ?? ""} placeholder="email@example.com" />
+              </div>
+              <div>
+                <label className="form-label">Address</label>
+                <textarea name="address" defaultValue={address ?? ""} rows={3} style={{ resize: "none" }} placeholder="Street, City, Country..." />
               </div>
             </div>
             <div className="modal-footer">

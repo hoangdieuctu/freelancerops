@@ -83,7 +83,7 @@ export async function createMember(data: { name: string; role: string; email?: s
   return member;
 }
 
-export async function updateMember(id: string, data: { name: string; role: string; email?: string }) {
+export async function updateMember(id: string, data: { name: string; role: string; email?: string; address?: string }) {
   await prisma.member.update({ where: { id }, data });
   revalidatePath("/members");
 }

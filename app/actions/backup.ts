@@ -16,7 +16,7 @@ export async function sendBackup(): Promise<{ ok: boolean; error?: string }> {
 
   const dbPath = path.resolve(process.cwd(), "prisma/dev.db");
   const now = new Date();
-  const version = "1.0.12";
+  const version = "1.0.13";
   const dateStr = now.toISOString().slice(0, 10).replace(/-/g, "");
   const filename = `freelanceops-${version}-${dateStr}.db`;
 
