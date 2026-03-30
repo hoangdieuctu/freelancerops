@@ -37,3 +37,20 @@ export async function deleteCustomer(id: string) {
   await prisma.customer.delete({ where: { id } });
   revalidatePath("/customers");
 }
+
+export async function getCustomerEmailConfig(customerId: string) {
+  return prisma.customerEmailConfig.findUnique({ where: { customerId } });
+}
+
+export async function saveCustomerEmailConfig(
+  customerId: string,
+  data: { receivers: string; subject: string; bodyHtml: string }
+) {
+  const config = await prisma.customerEmailConfig.upsert({
+    where: { customerId },
+    update: data,
+    create: { customerId, ...data },
+  });
+  revalidatePath("/customers");
+  return config;
+}

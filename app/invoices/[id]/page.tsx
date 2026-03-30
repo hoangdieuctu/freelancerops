@@ -2,11 +2,13 @@ export const dynamic = "force-dynamic";
 
 import { getInvoice } from "../../actions/invoices";
 import { getProfitMember } from "../../actions/members";
+import { getCustomerEmailConfig } from "../../actions/customers";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import DeleteInvoiceButton from "../DeleteInvoiceButton";
 import InvoiceStatusForm from "../InvoiceStatusForm";
 import EditInvoiceButton from "../EditInvoiceButton";
+import SendInvoiceButton from "../SendInvoiceButton";
 
 const statusColor: Record<string, string> = {
   draft: "var(--text-muted)",
@@ -18,6 +20,10 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   const { id } = await params;
   const [invoice, profitMember] = await Promise.all([getInvoice(id), getProfitMember()]);
   if (!invoice) notFound();
+
+  const customerId = invoice.project.customer?.id;
+  const emailConfig = customerId ? await getCustomerEmailConfig(customerId) : null;
+  const hasEmailConfig = !!emailConfig;
 
   const subtotal = invoice.lines.reduce((s, l) => s + l.subtotal, 0);
   const taxRate = (invoice.taxPercent ?? 0) / 100;
@@ -77,6 +83,9 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           >
             Export
           </a>
+          {invoice.status === "draft" && (
+            <SendInvoiceButton invoiceId={invoice.id} hasEmailConfig={hasEmailConfig} emailSentAt={invoice.emailSentAt} />
+          )}
           <EditInvoiceButton invoice={{
             id: invoice.id,
             number: invoice.number,
@@ -138,6 +147,14 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
               <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>Customer</span>
               <span style={{ fontSize: "12px", color: "var(--text-dim)" }}>{invoice.project.customer?.name ?? "—"}</span>
             </div>
+            {invoice.emailSentAt && (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--border)", paddingTop: "10px", marginTop: "2px" }}>
+                <span style={{ fontSize: "11px", color: "var(--amber)" }}>✉ Sent</span>
+                <span style={{ fontSize: "12px", color: "var(--amber)" }}>
+                  {new Date(invoice.emailSentAt).toLocaleString()}
+                </span>
+              </div>
+            )}
             {invoice.notes && (
               <div style={{ borderTop: "1px solid var(--border)", paddingTop: "10px", marginTop: "4px" }}>
                 <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "4px" }}>Notes</div>

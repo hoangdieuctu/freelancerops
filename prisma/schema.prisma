@@ -46,12 +46,22 @@ model TeamMember {
 }
 
 model Customer {
-  id        String    @id @default(cuid())
-  name      String
-  email     String?
-  address   String?
-  createdAt DateTime  @default(now())
-  projects  Project[]
+  id          String               @id @default(cuid())
+  name        String
+  email       String?
+  address     String?
+  createdAt   DateTime             @default(now())
+  projects    Project[]
+  emailConfig CustomerEmailConfig?
+}
+
+model CustomerEmailConfig {
+  id          String   @id @default(cuid())
+  customerId  String   @unique
+  receivers   String
+  subject     String
+  bodyHtml    String
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 }
 
 model Project {
@@ -78,6 +88,7 @@ model Invoice {
   dueDate     DateTime?
   notes       String?
   taxPercent  Float?
+  emailSentAt DateTime?
   createdAt   DateTime      @default(now())
   project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
   lines       InvoiceLine[]

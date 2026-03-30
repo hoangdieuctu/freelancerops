@@ -4,6 +4,7 @@ import { getCustomers } from "../actions/customers";
 import CreateCustomerForm from "./CreateCustomerForm";
 import DeleteCustomerButton from "./DeleteCustomerButton";
 import EditCustomerButton from "./EditCustomerButton";
+import EmailConfigButton from "./EmailConfigButton";
 
 export default async function CustomersPage() {
   const customers = await getCustomers();
@@ -44,6 +45,7 @@ export default async function CustomersPage() {
                 <td><span style={{ color: "var(--amber)" }}>{c.projects.length}</span></td>
                 <td style={{ textAlign: "right" }}>
                   <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
+                    <EmailConfigButton customerId={c.id} customerName={c.name} />
                     <EditCustomerButton customer={c} />
                     <DeleteCustomerButton customerId={c.id} customerName={c.name} />
                   </div>

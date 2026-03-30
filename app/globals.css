@@ -109,6 +109,26 @@ select option {
   border-color: var(--red);
 }
 
+/* Send invoice tooltip */
+.send-invoice-wrapper .send-invoice-tooltip {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 8px 10px;
+  white-space: nowrap;
+  z-index: 50;
+  pointer-events: none;
+}
+.send-invoice-wrapper:hover .send-invoice-tooltip {
+  display: block;
+}
+
 /* Cards */
 .card {
   background: var(--surface);

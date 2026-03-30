@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import nodemailer from "nodemailer";
+import { generateInvoicePdf } from "@/lib/generateInvoicePdf";
 
 export async function getInvoices() {
   return prisma.invoice.findMany({
@@ -227,4 +229,90 @@ export async function deleteInvoice(id: string, projectId: string) {
   await prisma.invoice.delete({ where: { id } });
   revalidatePath("/invoices");
   revalidatePath(`/projects/${projectId}`);
+}
+
+export async function sendInvoice(id: string): Promise<{ ok: boolean; error?: string }> {
+  const invoice = await prisma.invoice.findUnique({
+    where: { id },
+    include: {
+      project: {
+        include: {
+          customer: { include: { emailConfig: true } },
+        },
+      },
+      lines: true,
+    },
+  });
+  if (!invoice) return { ok: false, error: "Invoice not found." };
+
+  const customer = invoice.project.customer;
+  if (!customer?.emailConfig) return { ok: false, error: "No email config for this customer." };
+
+  const settings = await prisma.settings.findUnique({ where: { id: "singleton" } });
+  if (!settings?.smtpHost || !settings?.smtpPort || !settings?.smtpUser || !settings?.smtpPass) {
+    return { ok: false, error: "SMTP is not configured. Please fill in all SMTP settings first." };
+  }
+
+  const { receivers, subject, bodyHtml } = customer.emailConfig;
+
+  const lineSubtotal = invoice.lines.reduce((s, l) => s + l.subtotal, 0);
+  const taxRate = (invoice.taxPercent ?? 0) / 100;
+  const total = taxRate > 0 ? lineSubtotal / (1 - taxRate) : lineSubtotal;
+  const fmt = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const fmtD = (d: Date | string) => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+  const vars: Record<string, string> = {
+    invoiceNumber: invoice.number,
+    invoiceDate: fmtD(invoice.invoiceDate),
+    dueDate: invoice.dueDate ? fmtD(invoice.dueDate) : "—",
+    total: fmt(total),
+    customerName: customer.name,
+    projectName: invoice.project.name,
+  };
+
+  const interpolate = (tpl: string) =>
+    tpl.replace(/\{\{(\w+)\}\}/g, (_, key: string) => vars[key] ?? `{{${key}}}`);
+
+  const resolvedSubject = interpolate(subject);
+  const resolvedBody    = interpolate(bodyHtml);
+
+  let pdfBytes: Uint8Array;
+  try {
+    pdfBytes = await generateInvoicePdf(id);
+  } catch (err: unknown) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: settings.smtpHost,
+    port: settings.smtpPort,
+    secure: settings.smtpPort === 465,
+    auth: { user: settings.smtpUser, pass: settings.smtpPass },
+  });
+
+  const toList = receivers.split(",").map((e: string) => e.trim()).filter(Boolean).join(", ");
+
+  try {
+    await transporter.sendMail({
+      from: settings.smtpFrom || settings.smtpUser,
+      to: toList,
+      subject: resolvedSubject,
+      html: resolvedBody,
+      attachments: [
+        {
+          filename: `invoice-${invoice.number}.pdf`,
+          content: Buffer.from(pdfBytes),
+          contentType: "application/pdf",
+        },
+      ],
+    });
+  } catch (err: unknown) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+
+  await prisma.invoice.update({ where: { id }, data: { status: "sent", emailSentAt: new Date() } });
+  revalidatePath("/invoices");
+  revalidatePath(`/invoices/${id}`);
+
+  return { ok: true };
 }
