@@ -223,6 +223,15 @@ export async function revertInvoiceToSent(id: string) {
   return updated;
 }
 
+export async function toggleInvoiceLinePaid(lineId: string, paid: boolean) {
+  const line = await prisma.invoiceLine.update({
+    where: { id: lineId },
+    data: { paidAt: paid ? new Date() : null },
+    select: { invoiceId: true },
+  });
+  revalidatePath(`/invoices/${line.invoiceId}`);
+}
+
 export async function deleteInvoice(id: string, projectId: string) {
   const invoice = await prisma.invoice.findUnique({ where: { id }, select: { status: true } });
   if (invoice?.status !== "draft") throw new Error("Only draft invoices can be deleted.");

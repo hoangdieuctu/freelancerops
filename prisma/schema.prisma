@@ -107,6 +107,7 @@ model InvoiceLine {
   subtotal     Float
   extraHours   Float   @default(0)
   extraAmount  Float   @default(0)
+  paidAt       DateTime?
   invoice      Invoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   teamMember   TeamMember @relation(fields: [teamMemberId], references: [id])
 }
