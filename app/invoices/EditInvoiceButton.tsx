@@ -139,7 +139,7 @@ export default function EditInvoiceButton({ invoice }: { invoice: Invoice }) {
       invoiceDate: fd.get("invoiceDate") as string,
       dueDate: (fd.get("dueDate") as string) || undefined,
       notes: (fd.get("notes") as string) || undefined,
-      taxPercent: taxPercent ? parseInt(taxPercent) : undefined,
+      taxPercent: taxPercent ? parseFloat(taxPercent) : undefined,
       lines,
     });
 
@@ -149,7 +149,7 @@ export default function EditInvoiceButton({ invoice }: { invoice: Invoice }) {
   }
 
   const subtotal = members.reduce((sum, tm) => sum + getMemberTotal(tm), 0);
-  const taxRate = (parseInt(taxPercent) || 0) / 100;
+  const taxRate = (parseFloat(taxPercent) || 0) / 100;
   const total = taxRate > 0 ? subtotal / (1 - taxRate) : subtotal;
   const taxAmount = total - subtotal;
 
@@ -322,11 +322,11 @@ export default function EditInvoiceButton({ invoice }: { invoice: Invoice }) {
                             type="number"
                             min="0"
                             max="99"
-                            step="1"
+                            step="any"
                             placeholder="0"
                             value={taxPercent}
                             onChange={(e) => setTaxPercent(e.target.value)}
-                            onBlur={(e) => setTaxPercent(e.target.value ? String(Math.round(parseFloat(e.target.value))) : "")}
+                            onBlur={(e) => setTaxPercent(e.target.value ? String(parseFloat(e.target.value)) : "")}
                             style={{ width: "56px", padding: "2px 6px", fontSize: "12px", textAlign: "right" }}
                           />
                           <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>%</span>
