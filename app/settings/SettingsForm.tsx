@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { saveSettings } from "../actions/settings";
-import { sendBackup } from "../actions/backup";
+import { sendBackup, restoreBackup } from "../actions/backup";
 import { useRouter } from "next/navigation";
 
 type Settings = {
@@ -18,6 +18,9 @@ export default function SettingsForm({ settings }: { settings: Settings }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [backing, setBacking] = useState(false);
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [restoring, setRestoring] = useState(false);
+  const [confirmRestore, setConfirmRestore] = useState(false);
   const [notice, setNotice] = useState<{ ok: boolean; msg: string } | null>(null);
 
   const [smtpHost, setSmtpHost] = useState(settings?.smtpHost ?? "");
@@ -48,6 +51,23 @@ export default function SettingsForm({ settings }: { settings: Settings }) {
     const result = await sendBackup();
     setBacking(false);
     setNotice(result.ok ? { ok: true, msg: "Backup sent successfully." } : { ok: false, msg: result.error ?? "Unknown error." });
+  }
+
+  async function handleRestore() {
+    if (!restoreFile) return;
+    setRestoring(true);
+    setNotice(null);
+    const fd = new FormData();
+    fd.append("file", restoreFile);
+    const result = await restoreBackup(fd);
+    setRestoring(false);
+    setConfirmRestore(false);
+    setRestoreFile(null);
+    if (result.ok) {
+      setNotice({ ok: true, msg: "Database restored successfully. Reload the page to see updated data." });
+    } else {
+      setNotice({ ok: false, msg: result.error ?? "Unknown error." });
+    }
   }
 
   return (
@@ -99,6 +119,48 @@ export default function SettingsForm({ settings }: { settings: Settings }) {
           </button>
           <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "8px" }}>
             Sends the SQLite database file as an email attachment.
+          </div>
+
+          <div style={{ borderTop: "1px solid var(--border)", marginTop: "20px", paddingTop: "20px" }}>
+            <div className="display-font" style={{ fontSize: "13px", fontWeight: 700, letterSpacing: "0.05em", marginBottom: "12px" }}>
+              RESTORE FROM BACKUP
+            </div>
+            <input
+              type="file"
+              accept=".db"
+              style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "10px", display: "block" }}
+              onChange={(e) => {
+                setRestoreFile(e.target.files?.[0] ?? null);
+                setConfirmRestore(false);
+              }}
+            />
+            {restoreFile && !confirmRestore && (
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={() => setConfirmRestore(true)}
+              >
+                Restore &ldquo;{restoreFile.name}&rdquo;
+              </button>
+            )}
+            {confirmRestore && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <div style={{ fontSize: "11px", color: "var(--red)" }}>
+                  This will overwrite the current database. This cannot be undone.
+                </div>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button type="button" className="btn btn-danger" onClick={handleRestore} disabled={restoring}>
+                    {restoring ? "Restoring..." : "Yes, overwrite"}
+                  </button>
+                  <button type="button" className="btn btn-ghost" onClick={() => setConfirmRestore(false)} disabled={restoring}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+            <div style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "8px" }}>
+              Upload a .db backup file to replace the current database.
+            </div>
           </div>
         </div>
       </div>
