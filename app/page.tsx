@@ -23,8 +23,16 @@ export default async function DashboardPage() {
   const recentProjects = projects.slice(0, 5);
   const totalEarned = Object.values(earningTotals).reduce((s, v) => s + v, 0);
   const totalMargin = Object.values(marginTotals).reduce((s, v) => s + v, 0);
-  const unpaidInvoices = invoices.filter((inv) => inv.status !== "paid");
-  const unpaidTotal = unpaidInvoices.reduce((s, inv) => s + inv.lines.reduce((ls, l) => ls + l.subtotal, 0), 0);
+  const unpaidInvoices = invoices.filter((inv) => inv.status !== "paid" && inv.status !== "archived");
+  const { unpaidSubtotal, unpaidTotal } = unpaidInvoices.reduce((acc, inv) => {
+    const lineSubtotal = inv.type === "custom"
+      ? inv.customLines.reduce((ls, l) => ls + l.subtotal, 0)
+      : inv.lines.reduce((ls, l) => ls + l.subtotal, 0);
+    const taxRate = (inv.taxPercent ?? 0) / 100;
+    const total = taxRate > 0 ? lineSubtotal / (1 - taxRate) : lineSubtotal;
+    return { unpaidSubtotal: acc.unpaidSubtotal + lineSubtotal, unpaidTotal: acc.unpaidTotal + total };
+  }, { unpaidSubtotal: 0, unpaidTotal: 0 });
+  const unpaidHasTax = unpaidTotal > unpaidSubtotal;
   const memberEarnings = members
     .map((m) => ({ id: m.id, name: m.name, role: m.role, isProfitMember: m.isProfitMember, total: earningTotals[m.id] ?? 0, margin: marginTotals[m.id] ?? 0 }))
     .filter((m) => m.total > 0)
@@ -75,8 +83,11 @@ export default async function DashboardPage() {
         ))}
         <Link href="/invoices" style={{ background: "var(--surface)", padding: "28px 24px", textDecoration: "none", display: "block" }}>
           <div style={{ fontSize: "10px", letterSpacing: "0.15em", color: "var(--text-muted)", marginBottom: "12px" }}>UNPAID</div>
+          {unpaidHasTax && (
+            <div style={{ fontSize: "13px", color: "var(--text-muted)", marginBottom: "2px" }}>${unpaidSubtotal.toFixed(2)}</div>
+          )}
           <div className="display-font" style={{ fontSize: "36px", fontWeight: 800, color: "var(--red)", lineHeight: 1, marginBottom: "6px" }}>
-            ${unpaidTotal.toFixed(0)}
+            ${unpaidTotal.toFixed(2)}
           </div>
           <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{unpaidInvoices.length} invoice{unpaidInvoices.length !== 1 ? "s" : ""}</div>
         </Link>

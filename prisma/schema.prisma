@@ -46,13 +46,14 @@ model TeamMember {
 }
 
 model Customer {
-  id          String               @id @default(cuid())
-  name        String
-  email       String?
-  address     String?
-  createdAt   DateTime             @default(now())
-  projects    Project[]
-  emailConfig CustomerEmailConfig?
+  id                 String               @id @default(cuid())
+  name               String
+  email              String?
+  address            String?
+  defaultTaxPercent  Float?
+  createdAt          DateTime             @default(now())
+  projects           Project[]
+  emailConfig        CustomerEmailConfig?
 }
 
 model CustomerEmailConfig {
@@ -83,6 +84,7 @@ model Invoice {
   id          String        @id @default(cuid())
   number      String        @unique
   projectId   String
+  type        String        @default("normal")
   status      String        @default("draft")
   invoiceDate DateTime
   dueDate     DateTime?
@@ -92,8 +94,20 @@ model Invoice {
   createdAt   DateTime      @default(now())
   project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
   lines       InvoiceLine[]
+  customLines CustomInvoiceLine[]
   earnings  Earning[]
   workLogs  WorkLog[]
+}
+
+model CustomInvoiceLine {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  description String
+  isFixed     Boolean  @default(false)
+  quantity    Float    @default(1)
+  unitPrice   Float
+  subtotal    Float
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 }
 
 model InvoiceLine {

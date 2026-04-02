@@ -7,9 +7,10 @@ import { useRouter } from "next/navigation";
 const STATUSES = ["draft", "sent", "paid"];
 
 const statusStyle: Record<string, { color: string; background: string; border: string }> = {
-  draft: { color: "var(--text-muted)", background: "transparent", border: "1px solid var(--border)" },
-  sent:  { color: "var(--amber)",      background: "var(--amber-faint)", border: "1px solid var(--amber)" },
-  paid:  { color: "var(--green)",      background: "rgba(0,200,100,0.08)", border: "1px solid var(--green)" },
+  draft:    { color: "var(--text-muted)", background: "transparent",              border: "1px solid var(--border)" },
+  sent:     { color: "var(--amber)",      background: "var(--amber-faint)",        border: "1px solid var(--amber)" },
+  paid:     { color: "var(--green)",      background: "rgba(0,200,100,0.08)",      border: "1px solid var(--green)" },
+  archived: { color: "var(--text-muted)", background: "rgba(120,120,120,0.08)",   border: "1px solid rgba(120,120,120,0.3)" },
 };
 
 export default function InvoiceStatusBadge({ invoiceId, status }: { invoiceId: string; status: string }) {
@@ -20,7 +21,7 @@ export default function InvoiceStatusBadge({ invoiceId, status }: { invoiceId: s
   async function handleClick(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (saving || current === "paid") return;
+    if (saving || current === "paid" || current === "archived") return;
     const next = STATUSES[(STATUSES.indexOf(current) + 1) % STATUSES.length];
     setSaving(true);
     setCurrent(next);
@@ -41,7 +42,7 @@ export default function InvoiceStatusBadge({ invoiceId, status }: { invoiceId: s
         fontWeight: 600,
         padding: "4px 10px",
         borderRadius: "3px",
-        cursor: saving ? "wait" : current === "paid" ? "default" : "pointer",
+        cursor: saving ? "wait" : (current === "paid" || current === "archived") ? "default" : "pointer",
         minWidth: "56px",
         textAlign: "center",
         transition: "all 0.15s",

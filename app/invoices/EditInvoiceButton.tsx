@@ -327,7 +327,7 @@ export default function EditInvoiceButton({ invoice }: { invoice: Invoice }) {
                             value={taxPercent}
                             onChange={(e) => setTaxPercent(e.target.value)}
                             onBlur={(e) => setTaxPercent(e.target.value ? String(parseFloat(e.target.value)) : "")}
-                            style={{ width: "56px", padding: "2px 6px", fontSize: "12px", textAlign: "right" }}
+                            style={{ width: "88px", padding: "4px 8px", fontSize: "13px", textAlign: "right" }}
                           />
                           <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>%</span>
                         </div>

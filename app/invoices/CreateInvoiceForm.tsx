@@ -15,6 +15,7 @@ type TeamMember = {
 type Project = {
   id: string;
   name: string;
+  defaultTaxPercent?: number | null;
   team: { members: TeamMember[] } | null;
 };
 
@@ -47,6 +48,16 @@ export default function CreateInvoiceForm({
     }
   }, [defaultHours, defaultExtraHours, open]);
 
+  // Pre-fill tax when opening for a fixed project
+  useEffect(() => {
+    if (open && defaultProjectId) {
+      const proj = projects.find((p) => p.id === defaultProjectId);
+      if (proj?.defaultTaxPercent != null) {
+        setTaxPercent(String(proj.defaultTaxPercent));
+      }
+    }
+  }, [open, defaultProjectId, projects]);
+
   const [fixedAmounts, setFixedAmounts] = useState<Record<string, string>>({});
   const [modes, setModes] = useState<Record<string, "hourly" | "fixed">>({});
   const [descriptions, setDescriptions] = useState<Record<string, string>>({});
@@ -71,6 +82,10 @@ export default function CreateInvoiceForm({
     setExtraHours({});
     setExtraAmounts({});
     setExtraOpen({});
+    const proj = projects.find((p) => p.id === id);
+    if (proj?.defaultTaxPercent != null) {
+      setTaxPercent(String(proj.defaultTaxPercent));
+    }
   }
 
   function getMode(tmId: string): "hourly" | "fixed" {
@@ -357,7 +372,7 @@ export default function CreateInvoiceForm({
                                 value={taxPercent}
                                 onChange={(e) => setTaxPercent(e.target.value)}
                                 onBlur={(e) => setTaxPercent(e.target.value ? String(parseFloat(e.target.value)) : "")}
-                                style={{ width: "56px", padding: "2px 6px", fontSize: "12px", textAlign: "right" }}
+                                style={{ width: "88px", padding: "4px 8px", fontSize: "13px", textAlign: "right" }}
                               />
                               <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>%</span>
                             </div>

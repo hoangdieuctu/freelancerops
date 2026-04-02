@@ -8,13 +8,16 @@ import Link from "next/link";
 import DeleteInvoiceButton from "../DeleteInvoiceButton";
 import InvoiceStatusForm from "../InvoiceStatusForm";
 import EditInvoiceButton from "../EditInvoiceButton";
+import EditCustomInvoiceButton from "../EditCustomInvoiceButton";
 import SendInvoiceButton from "../SendInvoiceButton";
 import InvoiceLines from "../InvoiceLines";
+import CustomInvoiceLines from "../CustomInvoiceLines";
 
 const statusColor: Record<string, string> = {
-  draft: "var(--text-muted)",
-  sent: "var(--amber)",
-  paid: "var(--green)",
+  draft:    "var(--text-muted)",
+  sent:     "var(--amber)",
+  paid:     "var(--green)",
+  archived: "var(--text-muted)",
 };
 
 export default async function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -26,10 +29,16 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   const emailConfig = customerId ? await getCustomerEmailConfig(customerId) : null;
   const hasEmailConfig = !!emailConfig;
 
-  const subtotal = invoice.lines.reduce((s, l) => s + l.subtotal, 0);
+  const isCustom = invoice.type === "custom";
+
+  const subtotal = isCustom
+    ? invoice.customLines.reduce((s, l) => s + l.subtotal, 0)
+    : invoice.lines.reduce((s, l) => s + l.subtotal, 0);
   const taxRate = (invoice.taxPercent ?? 0) / 100;
   const total = taxRate > 0 ? subtotal / (1 - taxRate) : subtotal;
   const taxAmount = total - subtotal;
+
+  // Normal invoice only
   const hourlyLines = invoice.lines.filter(l => !l.isFixed);
   const shadowLines = hourlyLines.filter(l => l.teamMember.shadowOfId);
   const shadowHoursByTarget: Record<string, number> = {};
@@ -87,37 +96,51 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           {invoice.status === "draft" && (
             <SendInvoiceButton invoiceId={invoice.id} hasEmailConfig={hasEmailConfig} emailSentAt={invoice.emailSentAt} />
           )}
-          <EditInvoiceButton invoice={{
-            id: invoice.id,
-            number: invoice.number,
-            invoiceDate: invoice.invoiceDate,
-            dueDate: invoice.dueDate,
-            notes: invoice.notes,
-            taxPercent: invoice.taxPercent,
-            status: invoice.status,
-            lines: invoice.lines.map((l) => ({
-              id: l.id,
-              teamMemberId: l.teamMemberId,
-              hoursSpent: l.hoursSpent,
-              isFixed: l.isFixed,
-              description: l.description,
-              clientRate: l.clientRate,
-              extraHours: l.extraHours,
-              extraAmount: l.extraAmount,
-            })),
-            project: {
-              team: invoice.project.team
-                ? {
-                    members: invoice.project.team.members.map((tm) => ({
-                      id: tm.id,
-                      clientRate: tm.clientRate,
-                      shadowOfId: tm.shadowOfId,
-                      member: { name: tm.member.name, role: tm.member.role },
-                    })),
-                  }
-                : null,
-            },
-          }} />
+          {isCustom ? (
+            <EditCustomInvoiceButton invoice={{
+              id: invoice.id,
+              number: invoice.number,
+              invoiceDate: invoice.invoiceDate,
+              dueDate: invoice.dueDate,
+              notes: invoice.notes,
+              taxPercent: invoice.taxPercent,
+              status: invoice.status,
+              type: invoice.type,
+              customLines: invoice.customLines,
+            }} />
+          ) : (
+            <EditInvoiceButton invoice={{
+              id: invoice.id,
+              number: invoice.number,
+              invoiceDate: invoice.invoiceDate,
+              dueDate: invoice.dueDate,
+              notes: invoice.notes,
+              taxPercent: invoice.taxPercent,
+              status: invoice.status,
+              lines: invoice.lines.map((l) => ({
+                id: l.id,
+                teamMemberId: l.teamMemberId,
+                hoursSpent: l.hoursSpent,
+                isFixed: l.isFixed,
+                description: l.description,
+                clientRate: l.clientRate,
+                extraHours: l.extraHours,
+                extraAmount: l.extraAmount,
+              })),
+              project: {
+                team: invoice.project.team
+                  ? {
+                      members: invoice.project.team.members.map((tm) => ({
+                        id: tm.id,
+                        clientRate: tm.clientRate,
+                        shadowOfId: tm.shadowOfId,
+                        member: { name: tm.member.name, role: tm.member.role },
+                      })),
+                    }
+                  : null,
+              },
+            }} />
+          )}
           <InvoiceStatusForm invoiceId={invoice.id} currentStatus={invoice.status} />
           <DeleteInvoiceButton invoiceId={invoice.id} projectId={invoice.project.id} status={invoice.status} />
         </div>
@@ -186,54 +209,71 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                 </div>
               </>
             )}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>Internal cost</span>
-              <span style={{ fontSize: "13px", color: "var(--text-dim)", fontWeight: 600 }}>${internalTotal.toFixed(2)}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-                Margin{profitMember ? <> · <span style={{ color: "var(--green)" }}>{profitMember.name}</span></> : ""}
-              </span>
-              <span style={{ fontSize: "13px", fontWeight: 700, color: diff >= 0 ? "var(--green)" : "var(--red)" }}>
-                {diff >= 0 ? "+" : ""}${diff.toFixed(2)}
-              </span>
-            </div>
+            {!isCustom && (
+              <>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>Internal cost</span>
+                  <span style={{ fontSize: "13px", color: "var(--text-dim)", fontWeight: 600 }}>${internalTotal.toFixed(2)}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                    Margin{profitMember ? <> · <span style={{ color: "var(--green)" }}>{profitMember.name}</span></> : ""}
+                  </span>
+                  <span style={{ fontSize: "13px", fontWeight: 700, color: diff >= 0 ? "var(--green)" : "var(--red)" }}>
+                    {diff >= 0 ? "+" : ""}${diff.toFixed(2)}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
-          <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-            {invoice.lines.length} member{invoice.lines.length !== 1 ? "s" : ""}
-            {" · "}
-            {invoice.lines.filter(l => !l.isFixed && !l.teamMember.shadowOfId).reduce((s, l) => s + l.hoursSpent + l.extraHours, 0).toFixed(1)}h total
-          </div>
+          {!isCustom && (
+            <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+              {invoice.lines.length} member{invoice.lines.length !== 1 ? "s" : ""}
+              {" · "}
+              {invoice.lines.filter(l => !l.isFixed && !l.teamMember.shadowOfId).reduce((s, l) => s + l.hoursSpent + l.extraHours, 0).toFixed(1)}h total
+            </div>
+          )}
+          {isCustom && (
+            <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+              {invoice.customLines.length} line{invoice.customLines.length !== 1 ? "s" : ""}
+              {" · "}
+              <span style={{ color: "var(--text-muted)", fontStyle: "italic" }}>custom</span>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Lines */}
       <div style={{ marginBottom: "40px" }}>
         <div style={{ fontSize: "10px", letterSpacing: "0.15em", color: "var(--text-muted)", marginBottom: "16px" }}>INVOICE LINES</div>
-        <InvoiceLines
-          lines={invoice.lines.map((l) => ({
-            id: l.id,
-            isFixed: l.isFixed,
-            hoursSpent: l.hoursSpent,
-            extraHours: l.extraHours,
-            extraAmount: l.extraAmount,
-            clientRate: l.clientRate,
-            subtotal: l.subtotal,
-            description: l.description,
-            paidAt: l.paidAt,
-            teamMember: {
-              id: l.teamMember.id,
-              internalRate: l.teamMember.internalRate,
-              shadowOfId: l.teamMember.shadowOfId,
-              member: { name: l.teamMember.member.name, role: l.teamMember.member.role },
-            },
-          }))}
-          internalTotal={internalTotal}
-          subtotal={subtotal}
-          taxPercent={invoice.taxPercent}
-          taxAmount={taxAmount}
-          total={total}
-        />
+        {isCustom ? (
+          <CustomInvoiceLines lines={invoice.customLines} taxPercent={invoice.taxPercent} />
+        ) : (
+          <InvoiceLines
+            lines={invoice.lines.map((l) => ({
+              id: l.id,
+              isFixed: l.isFixed,
+              hoursSpent: l.hoursSpent,
+              extraHours: l.extraHours,
+              extraAmount: l.extraAmount,
+              clientRate: l.clientRate,
+              subtotal: l.subtotal,
+              description: l.description,
+              paidAt: l.paidAt,
+              teamMember: {
+                id: l.teamMember.id,
+                internalRate: l.teamMember.internalRate,
+                shadowOfId: l.teamMember.shadowOfId,
+                member: { name: l.teamMember.member.name, role: l.teamMember.member.role },
+              },
+            }))}
+            internalTotal={internalTotal}
+            subtotal={subtotal}
+            taxPercent={invoice.taxPercent}
+            taxAmount={taxAmount}
+            total={total}
+          />
+        )}
       </div>
 
       {/* Work Logs */}

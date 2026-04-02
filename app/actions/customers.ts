@@ -21,13 +21,14 @@ export async function createCustomer(data: {
   name: string;
   email?: string;
   address?: string;
+  defaultTaxPercent?: number;
 }) {
   const customer = await prisma.customer.create({ data });
   revalidatePath("/customers");
   return customer;
 }
 
-export async function updateCustomer(id: string, data: { name: string; email?: string; address?: string }) {
+export async function updateCustomer(id: string, data: { name: string; email?: string; address?: string; defaultTaxPercent?: number }) {
   const customer = await prisma.customer.update({ where: { id }, data });
   revalidatePath("/customers");
   return customer;

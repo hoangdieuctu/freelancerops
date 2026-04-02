@@ -12,12 +12,14 @@ import DeleteProjectButton from "./DeleteProjectButton";
 import EditStatusForm from "./EditStatusForm";
 import EditProjectButton from "../EditProjectButton";
 import CreateInvoiceForm from "../../invoices/CreateInvoiceForm";
+import CreateCustomInvoiceForm from "../../invoices/CreateCustomInvoiceForm";
 import WorkLogPanel from "./WorkLogPanel";
 
 const statusColor: Record<string, string> = {
-  draft: "var(--text-muted)",
-  sent: "var(--amber)",
-  paid: "var(--green)",
+  draft:    "var(--text-muted)",
+  sent:     "var(--amber)",
+  paid:     "var(--green)",
+  archived: "var(--text-muted)",
 };
 
 export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -34,6 +36,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
   const formProjects = [{
     id: project.id,
     name: project.name,
+    defaultTaxPercent: project.customer?.defaultTaxPercent ?? null,
     team: project.team
       ? {
           members: project.team.members.map((tm) => ({
@@ -201,13 +204,20 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
           <div style={{ fontSize: "10px", letterSpacing: "0.15em", color: "var(--text-muted)" }}>
             INVOICES ({project.invoices.length})
           </div>
-          <CreateInvoiceForm
-            projects={formProjects}
-            defaultProjectId={project.id}
-            defaultNumber={nextNumber}
-            defaultHours={defaultHours}
-            defaultExtraHours={defaultExtraHours}
-          />
+          <div style={{ display: "flex", gap: "8px" }}>
+            <CreateInvoiceForm
+              projects={formProjects}
+              defaultProjectId={project.id}
+              defaultNumber={nextNumber}
+              defaultHours={defaultHours}
+              defaultExtraHours={defaultExtraHours}
+            />
+            <CreateCustomInvoiceForm
+              projects={[{ id: project.id, name: project.name, defaultTaxPercent: project.customer?.defaultTaxPercent ?? null }]}
+              defaultNumber={nextNumber}
+              defaultProjectId={project.id}
+            />
+          </div>
         </div>
         {project.invoices.length === 0 ? (
           <div style={{ color: "var(--text-muted)", padding: "24px", border: "1px dashed var(--border)", textAlign: "center", fontSize: "12px" }}>
@@ -216,7 +226,13 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: "var(--border)" }}>
             {project.invoices.map((inv) => {
-              const total = inv.lines.reduce((s, l) => s + l.subtotal, 0);
+              const subtotal = inv.type === "custom"
+                ? inv.customLines.reduce((s, l) => s + l.subtotal, 0)
+                : inv.lines.reduce((s, l) => s + l.subtotal, 0);
+              const taxRate = (inv.taxPercent ?? 0) / 100;
+              const total = taxRate > 0 ? subtotal / (1 - taxRate) : subtotal;
+              const hasTax = taxRate > 0;
+              const lineCount = inv.type === "custom" ? inv.customLines.length : inv.lines.length;
               return (
                 <Link
                   key={inv.id}
@@ -228,8 +244,16 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
                     {new Date(inv.invoiceDate).toLocaleDateString()}
                     {inv.dueDate && <> · Due {new Date(inv.dueDate).toLocaleDateString()}</>}
                   </div>
-                  <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{inv.lines.length} line{inv.lines.length !== 1 ? "s" : ""}</div>
-                  <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--text)" }}>${total.toFixed(2)}</div>
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>{lineCount} line{lineCount !== 1 ? "s" : ""}</div>
+                  <div style={{ fontSize: "10px", letterSpacing: "0.08em", color: inv.type === "custom" ? "var(--amber)" : "var(--text-muted)", opacity: inv.type === "custom" ? 0.8 : 0.6 }}>
+                    {inv.type === "custom" ? "CUSTOM" : "NORMAL"}
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    {hasTax && (
+                      <div style={{ fontSize: "10px", color: "var(--text-muted)" }}>${subtotal.toFixed(2)}</div>
+                    )}
+                    <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--text)" }}>${total.toFixed(2)}</div>
+                  </div>
                   <span style={{ fontSize: "10px", letterSpacing: "0.1em", color: statusColor[inv.status] ?? "var(--text-muted)", minWidth: "36px", textAlign: "right" }}>
                     {inv.status.toUpperCase()}
                   </span>

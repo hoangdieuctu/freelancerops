@@ -18,6 +18,7 @@ export default function CreateCustomerForm() {
       name: fd.get("name") as string,
       email: (fd.get("email") as string) || undefined,
       address: (fd.get("address") as string) || undefined,
+      defaultTaxPercent: fd.get("defaultTaxPercent") ? parseFloat(fd.get("defaultTaxPercent") as string) : undefined,
     });
     setLoading(false);
     setOpen(false);
@@ -44,6 +45,10 @@ export default function CreateCustomerForm() {
               <div>
                 <label className="form-label">Address</label>
                 <textarea name="address" placeholder="Street, city, country..." rows={3} style={{ resize: "none" }} />
+              </div>
+              <div>
+                <label className="form-label">Default Tax (%)</label>
+                <input name="defaultTaxPercent" type="number" min="0" max="99" step="any" placeholder="e.g. 10" />
               </div>
             </div>
             <div className="modal-footer">

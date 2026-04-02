@@ -8,7 +8,7 @@ import Modal from "../components/Modal";
 export default function EditCustomerButton({
   customer,
 }: {
-  customer: { id: string; name: string; email: string | null; address: string | null };
+  customer: { id: string; name: string; email: string | null; address: string | null; defaultTaxPercent: number | null };
 }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -22,6 +22,7 @@ export default function EditCustomerButton({
       name: fd.get("name") as string,
       email: (fd.get("email") as string) || undefined,
       address: (fd.get("address") as string) || undefined,
+      defaultTaxPercent: fd.get("defaultTaxPercent") ? parseFloat(fd.get("defaultTaxPercent") as string) : undefined,
     });
     setLoading(false);
     setOpen(false);
@@ -48,6 +49,18 @@ export default function EditCustomerButton({
               <div>
                 <label className="form-label">Address</label>
                 <textarea name="address" defaultValue={customer.address ?? ""} rows={3} style={{ resize: "none" }} />
+              </div>
+              <div>
+                <label className="form-label">Default Tax (%)</label>
+                <input
+                  name="defaultTaxPercent"
+                  type="number"
+                  min="0"
+                  max="99"
+                  step="any"
+                  placeholder="e.g. 10"
+                  defaultValue={customer.defaultTaxPercent ?? ""}
+                />
               </div>
             </div>
             <div className="modal-footer">

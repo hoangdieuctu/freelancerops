@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { getInvoices, getNextInvoiceNumber } from "../actions/invoices";
 import { getProjects } from "../actions/projects";
 import CreateInvoiceForm from "./CreateInvoiceForm";
+import CreateCustomInvoiceForm from "./CreateCustomInvoiceForm";
 import InvoiceList from "./InvoiceList";
 
 export default async function InvoicesPage() {
@@ -15,6 +16,7 @@ export default async function InvoicesPage() {
   const formProjects = projects.map((p) => ({
     id: p.id,
     name: p.name,
+    defaultTaxPercent: p.customer?.defaultTaxPercent ?? null,
     team: p.team
       ? {
           members: p.team.members.map((tm) => ({
@@ -25,6 +27,12 @@ export default async function InvoicesPage() {
           })),
         }
       : null,
+  }));
+
+  const customFormProjects = projects.map((p) => ({
+    id: p.id,
+    name: p.name,
+    defaultTaxPercent: p.customer?.defaultTaxPercent ?? null,
   }));
 
   return (
@@ -38,7 +46,10 @@ export default async function InvoicesPage() {
             {invoices.length} invoice{invoices.length !== 1 ? "s" : ""}
           </div>
         </div>
-        <CreateInvoiceForm projects={formProjects} defaultNumber={nextNumber} />
+        <div style={{ display: "flex", gap: "8px" }}>
+          <CreateInvoiceForm projects={formProjects} defaultNumber={nextNumber} />
+          <CreateCustomInvoiceForm projects={customFormProjects} defaultNumber={nextNumber} />
+        </div>
       </div>
 
       {invoices.length === 0 ? (

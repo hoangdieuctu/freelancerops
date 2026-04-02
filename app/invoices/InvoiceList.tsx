@@ -7,10 +7,13 @@ import InvoiceStatusBadge from "./InvoiceStatusBadge";
 type Invoice = {
   id: string;
   number: string;
+  type: string;
   status: string;
   invoiceDate: Date;
   dueDate: Date | null;
+  taxPercent: number | null;
   lines: { subtotal: number }[];
+  customLines: { subtotal: number }[];
   project: {
     id: string;
     name: string;
@@ -67,6 +70,7 @@ export default function InvoiceList({ invoices }: { invoices: Invoice[] }) {
           <option value="draft">Draft</option>
           <option value="sent">Sent</option>
           <option value="paid">Paid</option>
+          <option value="archived">Archived</option>
         </select>
         <select value={filterProject} onChange={(e) => setFilterProject(e.target.value)} style={selectStyle}>
           <option value="">All projects</option>
@@ -97,7 +101,13 @@ export default function InvoiceList({ invoices }: { invoices: Invoice[] }) {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "1px", background: "var(--border)" }}>
           {filtered.map((inv) => {
-            const total = inv.lines.reduce((s, l) => s + l.subtotal, 0);
+            const subtotal = inv.type === "custom"
+              ? inv.customLines.reduce((s, l) => s + l.subtotal, 0)
+              : inv.lines.reduce((s, l) => s + l.subtotal, 0);
+            const taxRate = (inv.taxPercent ?? 0) / 100;
+            const total = taxRate > 0 ? subtotal / (1 - taxRate) : subtotal;
+            const hasTax = taxRate > 0;
+            const lineCount = inv.type === "custom" ? inv.customLines.length : inv.lines.length;
             return (
               <div
                 key={inv.id}
@@ -115,16 +125,22 @@ export default function InvoiceList({ invoices }: { invoices: Invoice[] }) {
                     {inv.project.customer?.name ?? "No customer"}
                   </div>
                 </Link>
+                <div style={{ fontSize: "10px", letterSpacing: "0.08em", color: inv.type === "custom" ? "var(--amber)" : "var(--text-muted)", opacity: inv.type === "custom" ? 0.8 : 0.6 }}>
+                  {inv.type === "custom" ? "CUSTOM" : "NORMAL"}
+                </div>
                 <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-                  {inv.lines.length} line{inv.lines.length !== 1 ? "s" : ""}
+                  {lineCount} line{lineCount !== 1 ? "s" : ""}
                 </div>
                 {inv.dueDate && (
                   <div style={{ fontSize: "11px", color: "var(--text-muted)", minWidth: "80px" }}>
                     Due {new Date(inv.dueDate).toLocaleDateString()}
                   </div>
                 )}
-                <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--text)", minWidth: "80px", textAlign: "right" }}>
-                  ${total.toFixed(2)}
+                <div style={{ textAlign: "right", minWidth: "80px" }}>
+                  {hasTax && (
+                    <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>${subtotal.toFixed(2)}</div>
+                  )}
+                  <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--text)" }}>${total.toFixed(2)}</div>
                 </div>
                 <InvoiceStatusBadge invoiceId={inv.id} status={inv.status} />
               </div>

@@ -45,6 +45,7 @@ export async function generateInvoicePdf(invoiceId: string): Promise<Uint8Array>
       include: {
         project: { include: { customer: true } },
         lines: { include: { teamMember: { include: { member: true } } } },
+        customLines: true,
         workLogs: { orderBy: { date: "asc" } },
       },
     }),
@@ -135,67 +136,96 @@ export async function generateInvoicePdf(invoiceId: string): Promise<Uint8Array>
   textRight(page, "AMOUNT", M + CW,      thY, 8, f.bold, c.gray);
   y -= 18 + 8;
 
-  const visibleLines = invoice.lines.filter(l => !l.teamMember.shadowOfId && l.subtotal > 0);
-  const allFixed = visibleLines.every(l => l.isFixed);
-
-  const logsByMember = new Map<string, typeof invoice.workLogs>();
-  for (const log of invoice.workLogs) {
-    const arr = logsByMember.get(log.memberId) ?? [];
-    arr.push(log);
-    logsByMember.set(log.memberId, arr);
-  }
-
-  const rowHeights = visibleLines.map(line => {
-    const logs = logsByMember.get(line.teamMember.memberId) ?? [];
-    return 28 + logs.length * 13;
-  });
-
   let rowY = y;
-  visibleLines.forEach((line, i) => {
-    const rowH = rowHeights[i];
-    const memberName = line.teamMember.member.name;
-    const qty   = line.isFixed ? "—" : String(line.hoursSpent + line.extraHours);
-    const price = line.isFixed ? "—" : fmt(line.clientRate);
-    const logs  = logsByMember.get(line.teamMember.memberId) ?? [];
 
-    if (i % 2 === 1) {
-      page.drawRectangle({ x: M, y: rowY - rowH + 8, width: CW, height: rowH, color: rgb(0.98, 0.98, 0.98) });
-    }
+  if (invoice.type === "custom") {
+    const customLines = invoice.customLines;
+    const allFixed = customLines.every((l) => l.isFixed);
 
-    text(page, String(i + 1), col.num.x,  rowY, 9, f.reg);
-    text(page, memberName,     col.desc.x, rowY, 9, f.bold);
+    customLines.forEach((line, i) => {
+      const rowH = 28;
+      const qty   = line.isFixed ? "—" : String(line.quantity);
+      const price = line.isFixed ? "—" : fmt(line.unitPrice);
 
-    if (logs.length > 0 && !line.description) {
-      logs.forEach((log, j) => {
-        const logY = rowY - 11 - j * 13;
-        const dateStr = fmtD(log.date);
-        const logText = log.description
-          ? `• ${dateStr}  ${log.description}  (${log.hoursSpent}h)`
-          : `• ${dateStr}  (${log.hoursSpent}h)`;
-        text(page, logText, col.desc.x, logY, 7.5, f.reg, c.gray);
-      });
-    } else {
-      const desc = line.description || line.teamMember.member.role;
-      if (desc) {
-        text(page, desc, col.desc.x, rowY - 11, 8, f.reg, c.gray);
+      if (i % 2 === 1) {
+        page.drawRectangle({ x: M, y: rowY - rowH + 8, width: CW, height: rowH, color: rgb(0.98, 0.98, 0.98) });
       }
+
+      text(page, String(i + 1),    col.num.x,  rowY, 9, f.reg);
+      text(page, line.description, col.desc.x, rowY, 9, f.bold);
+
+      if (!allFixed) {
+        text(page, qty,   col.qty.x,   rowY, 9, f.reg);
+        text(page, price, col.price.x, rowY, 9, f.reg);
+      }
+      textRight(page, fmt(line.subtotal), M + CW, rowY, 9, f.reg);
+
+      rowY -= rowH;
+    });
+  } else {
+    const visibleLines = invoice.lines.filter(l => !l.teamMember.shadowOfId && l.subtotal > 0);
+    const allFixed = visibleLines.every(l => l.isFixed);
+
+    const logsByMember = new Map<string, typeof invoice.workLogs>();
+    for (const log of invoice.workLogs) {
+      const arr = logsByMember.get(log.memberId) ?? [];
+      arr.push(log);
+      logsByMember.set(log.memberId, arr);
     }
 
-    if (!allFixed) {
-      text(page, qty,   col.qty.x,   rowY, 9, f.reg);
-      text(page, price, col.price.x, rowY, 9, f.reg);
-    }
-    textRight(page, fmt(line.subtotal), M + CW, rowY, 9, f.reg);
+    const rowHeights = visibleLines.map(line => {
+      const logs = logsByMember.get(line.teamMember.memberId) ?? [];
+      return 28 + logs.length * 13;
+    });
 
-    rowY -= rowH;
-  });
+    visibleLines.forEach((line, i) => {
+      const rowH = rowHeights[i];
+      const memberName = line.teamMember.member.name;
+      const qty   = line.isFixed ? "—" : String(line.hoursSpent + line.extraHours);
+      const price = line.isFixed ? "—" : fmt(line.clientRate);
+      const logs  = logsByMember.get(line.teamMember.memberId) ?? [];
+
+      if (i % 2 === 1) {
+        page.drawRectangle({ x: M, y: rowY - rowH + 8, width: CW, height: rowH, color: rgb(0.98, 0.98, 0.98) });
+      }
+
+      text(page, String(i + 1), col.num.x,  rowY, 9, f.reg);
+      text(page, memberName,     col.desc.x, rowY, 9, f.bold);
+
+      if (logs.length > 0 && !line.description) {
+        logs.forEach((log, j) => {
+          const logY = rowY - 11 - j * 13;
+          const dateStr = fmtD(log.date);
+          const logText = log.description
+            ? `• ${dateStr}  ${log.description}  (${log.hoursSpent}h)`
+            : `• ${dateStr}  (${log.hoursSpent}h)`;
+          text(page, logText, col.desc.x, logY, 7.5, f.reg, c.gray);
+        });
+      } else {
+        const desc = line.description || line.teamMember.member.role;
+        if (desc) {
+          text(page, desc, col.desc.x, rowY - 11, 8, f.reg, c.gray);
+        }
+      }
+
+      if (!allFixed) {
+        text(page, qty,   col.qty.x,   rowY, 9, f.reg);
+        text(page, price, col.price.x, rowY, 9, f.reg);
+      }
+      textRight(page, fmt(line.subtotal), M + CW, rowY, 9, f.reg);
+
+      rowY -= rowH;
+    });
+  }
 
   y = rowY - 12;
 
   hline(page, M, y, CW);
   y -= 20;
 
-  const subtotal = invoice.lines.reduce((s, l) => s + l.subtotal, 0);
+  const subtotal = invoice.type === "custom"
+    ? invoice.customLines.reduce((s, l) => s + l.subtotal, 0)
+    : invoice.lines.reduce((s, l) => s + l.subtotal, 0);
   const taxRate = (invoice.taxPercent ?? 0) / 100;
   const total = taxRate > 0 ? subtotal / (1 - taxRate) : subtotal;
   const taxAmount = total - subtotal;

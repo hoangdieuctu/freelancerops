@@ -16,7 +16,7 @@ export async function getProject(id: string) {
     include: {
       customer: true,
       team: { include: { members: { include: { member: true } } } },
-      invoices: { include: { lines: true }, orderBy: { invoiceDate: "desc" } },
+      invoices: { include: { lines: true, customLines: true }, orderBy: { invoiceDate: "desc" } },
     },
   });
 }

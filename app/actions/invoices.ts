@@ -10,6 +10,7 @@ export async function getInvoices() {
     include: {
       project: { include: { customer: true } },
       lines: true,
+      customLines: true,
     },
     orderBy: { invoiceDate: "desc" },
   });
@@ -26,6 +27,7 @@ export async function getInvoice(id: string) {
         },
       },
       lines: { include: { teamMember: { include: { member: true } } } },
+      customLines: true,
       workLogs: {
         include: { member: { select: { name: true, role: true } } },
         orderBy: { date: "desc" },
@@ -250,6 +252,7 @@ export async function sendInvoice(id: string): Promise<{ ok: boolean; error?: st
         },
       },
       lines: true,
+      customLines: true,
     },
   });
   if (!invoice) return { ok: false, error: "Invoice not found." };
@@ -264,7 +267,9 @@ export async function sendInvoice(id: string): Promise<{ ok: boolean; error?: st
 
   const { receivers, subject, bodyHtml } = customer.emailConfig;
 
-  const lineSubtotal = invoice.lines.reduce((s, l) => s + l.subtotal, 0);
+  const lineSubtotal = invoice.type === "custom"
+    ? invoice.customLines.reduce((s, l) => s + l.subtotal, 0)
+    : invoice.lines.reduce((s, l) => s + l.subtotal, 0);
   const taxRate = (invoice.taxPercent ?? 0) / 100;
   const total = taxRate > 0 ? lineSubtotal / (1 - taxRate) : lineSubtotal;
   const fmt = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -324,4 +329,79 @@ export async function sendInvoice(id: string): Promise<{ ok: boolean; error?: st
   revalidatePath(`/invoices/${id}`);
 
   return { ok: true };
+}
+
+export async function createCustomInvoice(data: {
+  number: string;
+  projectId: string;
+  invoiceDate: string;
+  dueDate?: string;
+  notes?: string;
+  taxPercent?: number;
+  lines: { description: string; isFixed: boolean; quantity: number; unitPrice: number }[];
+}) {
+  const invoice = await prisma.invoice.create({
+    data: {
+      number: data.number,
+      projectId: data.projectId,
+      type: "custom",
+      invoiceDate: new Date(data.invoiceDate),
+      dueDate: data.dueDate ? new Date(data.dueDate) : null,
+      notes: data.notes || null,
+      taxPercent: data.taxPercent ?? null,
+      customLines: {
+        create: data.lines.map((l) => ({
+          description: l.description,
+          isFixed: l.isFixed,
+          quantity: l.quantity,
+          unitPrice: l.unitPrice,
+          subtotal: l.isFixed ? l.unitPrice : l.quantity * l.unitPrice,
+        })),
+      },
+    },
+  });
+  revalidatePath("/invoices");
+  revalidatePath(`/projects/${data.projectId}`);
+  return invoice;
+}
+
+export async function updateCustomInvoice(
+  id: string,
+  data: {
+    number: string;
+    invoiceDate: string;
+    dueDate?: string;
+    notes?: string;
+    taxPercent?: number;
+    lines: { description: string; isFixed: boolean; quantity: number; unitPrice: number }[];
+  }
+) {
+  const invoice = await prisma.invoice.findUnique({ where: { id }, select: { status: true, projectId: true } });
+  if (!invoice) throw new Error("Invoice not found.");
+  if (invoice.status !== "draft") throw new Error("Only draft invoices can be edited.");
+
+  await prisma.customInvoiceLine.deleteMany({ where: { invoiceId: id } });
+  const updated = await prisma.invoice.update({
+    where: { id },
+    data: {
+      number: data.number,
+      invoiceDate: new Date(data.invoiceDate),
+      dueDate: data.dueDate ? new Date(data.dueDate) : null,
+      notes: data.notes || null,
+      taxPercent: data.taxPercent ?? null,
+      customLines: {
+        create: data.lines.map((l) => ({
+          description: l.description,
+          isFixed: l.isFixed,
+          quantity: l.quantity,
+          unitPrice: l.unitPrice,
+          subtotal: l.isFixed ? l.unitPrice : l.quantity * l.unitPrice,
+        })),
+      },
+    },
+  });
+  revalidatePath("/invoices");
+  revalidatePath(`/invoices/${id}`);
+  revalidatePath(`/projects/${invoice.projectId}`);
+  return updated;
 }

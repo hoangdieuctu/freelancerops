@@ -26,6 +26,25 @@ export default function InvoiceStatusForm({ invoiceId, currentStatus }: { invoic
     router.refresh();
   }
 
+  async function handleArchive() {
+    if (!confirm("Archive this invoice? It will be hidden from unpaid totals and dashboards.")) return;
+    await updateInvoiceStatus(invoiceId, "archived");
+    router.refresh();
+  }
+
+  async function handleUnarchive() {
+    await updateInvoiceStatus(invoiceId, "draft");
+    router.refresh();
+  }
+
+  if (currentStatus === "archived") {
+    return (
+      <button className="btn btn-ghost" style={{ fontSize: "11px", padding: "4px 8px" }} onClick={handleUnarchive}>
+        Unarchive
+      </button>
+    );
+  }
+
   if (currentStatus === "paid") {
     return (
       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -43,10 +62,15 @@ export default function InvoiceStatusForm({ invoiceId, currentStatus }: { invoic
   }
 
   return (
-    <select value={currentStatus} onChange={handleChange} style={{ fontSize: "12px", padding: "6px 10px" }}>
-      {STATUSES.map((s) => (
-        <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-      ))}
-    </select>
+    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+      <select value={currentStatus} onChange={handleChange} style={{ fontSize: "12px", padding: "6px 10px" }}>
+        {STATUSES.map((s) => (
+          <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+        ))}
+      </select>
+      <button className="btn btn-ghost" style={{ fontSize: "11px", padding: "4px 8px" }} onClick={handleArchive}>
+        Archive
+      </button>
+    </div>
   );
 }
