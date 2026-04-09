@@ -69,6 +69,8 @@ export default function CreateInvoiceForm({
     Object.fromEntries(Object.keys(defaultExtraHours ?? {}).map((k) => [k, true]))
   );
   const [taxPercent, setTaxPercent] = useState("");
+  const [convertTarget, setConvertTarget] = useState<string>("");
+  const [showConvert, setShowConvert] = useState(false);
   const router = useRouter();
 
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
@@ -86,6 +88,25 @@ export default function CreateInvoiceForm({
     if (proj?.defaultTaxPercent != null) {
       setTaxPercent(String(proj.defaultTaxPercent));
     }
+  }
+
+  function handleConvertTax() {
+    if (!convertTarget || taxAmount <= 0) return;
+    const tm = members.find((m) => m.id === convertTarget);
+    if (!tm) return;
+    const currentMode = getMode(convertTarget);
+    if (currentMode === "fixed") {
+      const current = parseFloat(fixedAmounts[convertTarget] ?? "0") || 0;
+      setFixedAmounts((a) => ({ ...a, [convertTarget]: String((current + taxAmount).toFixed(2)) }));
+    } else {
+      // Switch to fixed mode: convert existing hourly amount + tax
+      const existingAmount = getMemberTotal(tm);
+      setModes((m) => ({ ...m, [convertTarget]: "fixed" }));
+      setFixedAmounts((a) => ({ ...a, [convertTarget]: String((existingAmount + taxAmount).toFixed(2)) }));
+    }
+    setTaxPercent("");
+    setShowConvert(false);
+    setConvertTarget("");
   }
 
   function getMode(tmId: string): "hourly" | "fixed" {
@@ -162,6 +183,8 @@ export default function CreateInvoiceForm({
     setExtraAmounts({});
     setExtraOpen(Object.fromEntries(Object.keys(defaultExtraHours ?? {}).map((k) => [k, true])));
     setTaxPercent("");
+    setShowConvert(false);
+    setConvertTarget("");
     router.refresh();
   }
 
@@ -175,6 +198,8 @@ export default function CreateInvoiceForm({
     setExtraAmounts({});
     setExtraOpen(Object.fromEntries(Object.keys(defaultExtraHours ?? {}).map((k) => [k, true])));
     setTaxPercent("");
+    setShowConvert(false);
+    setConvertTarget("");
     setSelectedProjectId(defaultProjectId ?? "");
     setInvoiceNumber(defaultNumber);
   }
@@ -377,7 +402,45 @@ export default function CreateInvoiceForm({
                               <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>%</span>
                             </div>
                           </div>
-                          <span style={{ fontSize: "12px", color: "var(--text-dim)" }}>+${taxAmount.toFixed(2)}</span>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            {taxAmount > 0 && !showConvert && (
+                              <button
+                                type="button"
+                                onClick={() => { setShowConvert(true); setConvertTarget(members.filter(m => !m.shadowOfId)[0]?.id ?? ""); }}
+                                style={{ fontSize: "10px", padding: "2px 7px", border: "1px solid var(--border)", background: "transparent", color: "var(--text-muted)", cursor: "pointer", borderRadius: "2px" }}
+                              >
+                                → member
+                              </button>
+                            )}
+                            {showConvert && (
+                              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                <select
+                                  value={convertTarget}
+                                  onChange={(e) => setConvertTarget(e.target.value)}
+                                  style={{ fontSize: "11px", padding: "2px 6px" }}
+                                >
+                                  {members.filter(m => !m.shadowOfId).map(m => (
+                                    <option key={m.id} value={m.id}>{m.member.name}</option>
+                                  ))}
+                                </select>
+                                <button
+                                  type="button"
+                                  onClick={handleConvertTax}
+                                  style={{ fontSize: "10px", padding: "2px 7px", border: "1px solid var(--amber)", background: "transparent", color: "var(--amber)", cursor: "pointer", borderRadius: "2px", fontWeight: 700 }}
+                                >
+                                  Apply
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { setShowConvert(false); setConvertTarget(""); }}
+                                  style={{ fontSize: "10px", padding: "2px 7px", border: "1px solid var(--border)", background: "transparent", color: "var(--text-muted)", cursor: "pointer", borderRadius: "2px" }}
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            )}
+                            <span style={{ fontSize: "12px", color: "var(--text-dim)" }}>+${taxAmount.toFixed(2)}</span>
+                          </div>
                         </div>
                         <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", padding: "8px 12px", borderTop: "1px solid var(--border)" }}>
                           <span style={{ fontSize: "13px", color: "var(--text-muted)", marginRight: "12px" }}>TOTAL</span>

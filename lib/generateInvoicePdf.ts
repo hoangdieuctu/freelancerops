@@ -175,7 +175,8 @@ export async function generateInvoicePdf(invoiceId: string): Promise<Uint8Array>
 
     const rowHeights = visibleLines.map(line => {
       const logs = logsByMember.get(line.teamMember.memberId) ?? [];
-      return 28 + logs.length * 13;
+      const showLogs = logs.length > 0 && !line.description;
+      return 28 + (showLogs ? logs.length * 13 : (line.description || line.teamMember.member.role ? 13 : 0));
     });
 
     visibleLines.forEach((line, i) => {
