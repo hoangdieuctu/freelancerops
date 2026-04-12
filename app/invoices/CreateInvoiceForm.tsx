@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createInvoice } from "../actions/invoices";
+import { createInvoice, getNextInvoiceNumber } from "../actions/invoices";
 import { useRouter } from "next/navigation";
 import Modal from "../components/Modal";
 
@@ -71,6 +71,7 @@ export default function CreateInvoiceForm({
   const [taxPercent, setTaxPercent] = useState("");
   const [convertTarget, setConvertTarget] = useState<string>("");
   const [showConvert, setShowConvert] = useState(false);
+  const [numberError, setNumberError] = useState("");
   const router = useRouter();
 
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
@@ -87,6 +88,9 @@ export default function CreateInvoiceForm({
     const proj = projects.find((p) => p.id === id);
     if (proj?.defaultTaxPercent != null) {
       setTaxPercent(String(proj.defaultTaxPercent));
+    }
+    if (id && !defaultProjectId) {
+      getNextInvoiceNumber(id).then(setInvoiceNumber);
     }
   }
 
@@ -128,6 +132,7 @@ export default function CreateInvoiceForm({
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
+    setNumberError("");
     const fd = new FormData(e.currentTarget);
 
     const lines = members
@@ -163,7 +168,7 @@ export default function CreateInvoiceForm({
       })
       .filter((l) => l.hoursSpent > 0 || l.clientRate > 0);
 
-    await createInvoice({
+    const result = await createInvoice({
       number: invoiceNumber,
       projectId: selectedProjectId,
       invoiceDate: fd.get("invoiceDate") as string,
@@ -174,6 +179,12 @@ export default function CreateInvoiceForm({
     });
 
     setLoading(false);
+
+    if ("error" in result) {
+      setNumberError(result.error);
+      return;
+    }
+
     setOpen(false);
     setHours(Object.fromEntries(Object.entries(defaultHours ?? {}).map(([k, v]) => [k, String(v)])));
     setFixedAmounts({});
@@ -202,6 +213,7 @@ export default function CreateInvoiceForm({
     setConvertTarget("");
     setSelectedProjectId(defaultProjectId ?? "");
     setInvoiceNumber(defaultNumber);
+    setNumberError("");
   }
 
   const subtotal = members.reduce((sum, tm) => sum + getMemberTotal(tm), 0);
@@ -237,10 +249,14 @@ export default function CreateInvoiceForm({
                       <label className="form-label">Invoice Number *</label>
                       <input
                         value={invoiceNumber}
-                        onChange={(e) => setInvoiceNumber(e.target.value)}
+                        onChange={(e) => { setInvoiceNumber(e.target.value); setNumberError(""); }}
                         required
                         placeholder="INV-001"
+                        style={numberError ? { borderColor: "var(--red, #e05a5a)" } : undefined}
                       />
+                      {numberError && (
+                        <div style={{ fontSize: "10px", color: "var(--red, #e05a5a)", marginTop: "4px" }}>{numberError}</div>
+                      )}
                     </div>
                     <div>
                       <label className="form-label">Invoice Date *</label>

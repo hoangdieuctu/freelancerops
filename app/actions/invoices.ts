@@ -36,14 +36,21 @@ export async function getInvoice(id: string) {
   });
 }
 
-export async function getNextInvoiceNumber() {
-  const all = await prisma.invoice.findMany({ select: { number: true } });
-  const max = all.reduce((highest, inv) => {
-    const match = inv.number.match(/(\d+)$/);
-    if (!match) return highest;
-    return Math.max(highest, parseInt(match[1]));
-  }, 0);
-  return `INV-${String(max + 1).padStart(3, "0")}`;
+export async function getNextInvoiceNumber(projectId?: string) {
+  const where = projectId ? { projectId } : {};
+  const latest = await prisma.invoice.findFirst({
+    where,
+    select: { number: true },
+    orderBy: { invoiceDate: "desc" },
+  });
+  if (!latest) return "INV-001";
+  const match = latest.number.match(/^(.*?)(\d+)$/);
+  if (!match) return "INV-001";
+  const prefix = match[1];
+  const digits = match[2];
+  const next = parseInt(digits) + 1;
+  const padded = String(next).padStart(digits.length, "0");
+  return `${prefix}${padded}`;
 }
 
 export async function createInvoice(data: {
@@ -54,36 +61,44 @@ export async function createInvoice(data: {
   notes?: string;
   taxPercent?: number;
   lines: { teamMemberId: string; hoursSpent: number; isFixed: boolean; description?: string; clientRate: number; extraHours?: number; extraAmount?: number }[];
-}) {
-  const invoice = await prisma.invoice.create({
-    data: {
-      number: data.number,
-      projectId: data.projectId,
-      invoiceDate: new Date(data.invoiceDate),
-      dueDate: data.dueDate ? new Date(data.dueDate) : null,
-      notes: data.notes || null,
-      taxPercent: data.taxPercent ?? null,
-      lines: {
-        create: data.lines.map((l) => {
-          const extraH = l.extraHours ?? 0;
-          const extraA = l.extraAmount ?? 0;
-          const subtotal = l.isFixed
-            ? l.clientRate + extraA
-            : (l.hoursSpent + extraH) * l.clientRate;
-          return {
-            teamMemberId: l.teamMemberId,
-            hoursSpent: l.hoursSpent,
-            isFixed: l.isFixed,
-            description: l.description || null,
-            clientRate: l.clientRate,
-            subtotal,
-            extraHours: extraH,
-            extraAmount: extraA,
-          };
-        }),
+}): Promise<{ invoice: { id: string } } | { error: string }> {
+  let invoice;
+  try {
+    invoice = await prisma.invoice.create({
+      data: {
+        number: data.number,
+        projectId: data.projectId,
+        invoiceDate: new Date(data.invoiceDate),
+        dueDate: data.dueDate ? new Date(data.dueDate) : null,
+        notes: data.notes || null,
+        taxPercent: data.taxPercent ?? null,
+        lines: {
+          create: data.lines.map((l) => {
+            const extraH = l.extraHours ?? 0;
+            const extraA = l.extraAmount ?? 0;
+            const subtotal = l.isFixed
+              ? l.clientRate + extraA
+              : (l.hoursSpent + extraH) * l.clientRate;
+            return {
+              teamMemberId: l.teamMemberId,
+              hoursSpent: l.hoursSpent,
+              isFixed: l.isFixed,
+              description: l.description || null,
+              clientRate: l.clientRate,
+              subtotal,
+              extraHours: extraH,
+              extraAmount: extraA,
+            };
+          }),
+        },
       },
-    },
-  });
+    });
+  } catch (err: unknown) {
+    if ((err as { code?: string })?.code === "P2002") {
+      return { error: `Invoice number "${data.number}" already exists.` };
+    }
+    throw err;
+  }
 
   // Link all free work logs for this project to the new invoice
   await prisma.workLog.updateMany({
@@ -93,7 +108,7 @@ export async function createInvoice(data: {
 
   revalidatePath("/invoices");
   revalidatePath(`/projects/${data.projectId}`);
-  return invoice;
+  return { invoice };
 }
 
 export async function updateInvoice(
@@ -339,30 +354,37 @@ export async function createCustomInvoice(data: {
   notes?: string;
   taxPercent?: number;
   lines: { description: string; isFixed: boolean; quantity: number; unitPrice: number }[];
-}) {
-  const invoice = await prisma.invoice.create({
-    data: {
-      number: data.number,
-      projectId: data.projectId,
-      type: "custom",
-      invoiceDate: new Date(data.invoiceDate),
-      dueDate: data.dueDate ? new Date(data.dueDate) : null,
-      notes: data.notes || null,
-      taxPercent: data.taxPercent ?? null,
-      customLines: {
-        create: data.lines.map((l) => ({
-          description: l.description,
-          isFixed: l.isFixed,
-          quantity: l.quantity,
-          unitPrice: l.unitPrice,
-          subtotal: l.isFixed ? l.unitPrice : l.quantity * l.unitPrice,
-        })),
+}): Promise<{ invoice: { id: string } } | { error: string }> {
+  try {
+    const invoice = await prisma.invoice.create({
+      data: {
+        number: data.number,
+        projectId: data.projectId,
+        type: "custom",
+        invoiceDate: new Date(data.invoiceDate),
+        dueDate: data.dueDate ? new Date(data.dueDate) : null,
+        notes: data.notes || null,
+        taxPercent: data.taxPercent ?? null,
+        customLines: {
+          create: data.lines.map((l) => ({
+            description: l.description,
+            isFixed: l.isFixed,
+            quantity: l.quantity,
+            unitPrice: l.unitPrice,
+            subtotal: l.isFixed ? l.unitPrice : l.quantity * l.unitPrice,
+          })),
+        },
       },
-    },
-  });
-  revalidatePath("/invoices");
-  revalidatePath(`/projects/${data.projectId}`);
-  return invoice;
+    });
+    revalidatePath("/invoices");
+    revalidatePath(`/projects/${data.projectId}`);
+    return { invoice };
+  } catch (err: unknown) {
+    if ((err as { code?: string })?.code === "P2002") {
+      return { error: `Invoice number "${data.number}" already exists.` };
+    }
+    throw err;
+  }
 }
 
 export async function updateCustomInvoice(

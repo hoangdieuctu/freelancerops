@@ -28,7 +28,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
     getProject(id),
     getTeams(),
     getCustomers(),
-    getNextInvoiceNumber(),
+    getNextInvoiceNumber(id),
     getWorkLogsByProject(id),
   ]);
   if (!project) notFound();

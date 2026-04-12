@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createCustomInvoice } from "../actions/invoices";
+import { createCustomInvoice, getNextInvoiceNumber } from "../actions/invoices";
 import { useRouter } from "next/navigation";
 import Modal from "../components/Modal";
 
@@ -33,6 +33,7 @@ export default function CreateCustomInvoiceForm({
   const [selectedProjectId, setSelectedProjectId] = useState(defaultProjectId ?? "");
   const [rows, setRows] = useState<Row[]>([emptyRow()]);
   const [taxPercent, setTaxPercent] = useState("");
+  const [numberError, setNumberError] = useState("");
   const router = useRouter();
 
   // Pre-fill tax from customer default when project is fixed
@@ -76,6 +77,7 @@ export default function CreateCustomInvoiceForm({
     setTaxPercent("");
     setSelectedProjectId(defaultProjectId ?? "");
     setInvoiceNumber(defaultNumber);
+    setNumberError("");
   }
 
   function handleClose() {
@@ -88,8 +90,9 @@ export default function CreateCustomInvoiceForm({
     const validRows = rows.filter((r) => r.description.trim() && (parseFloat(r.unitPrice) || 0) > 0);
     if (validRows.length === 0) return;
     setLoading(true);
+    setNumberError("");
     const fd = new FormData(e.currentTarget);
-    await createCustomInvoice({
+    const result = await createCustomInvoice({
       number: invoiceNumber,
       projectId: selectedProjectId,
       invoiceDate: fd.get("invoiceDate") as string,
@@ -104,6 +107,10 @@ export default function CreateCustomInvoiceForm({
       })),
     });
     setLoading(false);
+    if ("error" in result) {
+      setNumberError(result.error);
+      return;
+    }
     setOpen(false);
     reset();
     router.refresh();
@@ -126,10 +133,14 @@ export default function CreateCustomInvoiceForm({
                       <label className="form-label">Invoice Number *</label>
                       <input
                         value={invoiceNumber}
-                        onChange={(e) => setInvoiceNumber(e.target.value)}
+                        onChange={(e) => { setInvoiceNumber(e.target.value); setNumberError(""); }}
                         required
                         placeholder="INV-001"
+                        style={numberError ? { borderColor: "var(--red, #e05a5a)" } : undefined}
                       />
+                      {numberError && (
+                        <div style={{ fontSize: "10px", color: "var(--red, #e05a5a)", marginTop: "4px" }}>{numberError}</div>
+                      )}
                     </div>
                     <div>
                       <label className="form-label">Invoice Date *</label>
@@ -147,10 +158,14 @@ export default function CreateCustomInvoiceForm({
                     <select
                       value={selectedProjectId}
                       onChange={(e) => {
-                        setSelectedProjectId(e.target.value);
-                        const proj = projects.find((p) => p.id === e.target.value);
+                        const id = e.target.value;
+                        setSelectedProjectId(id);
+                        const proj = projects.find((p) => p.id === id);
                         if (proj?.defaultTaxPercent != null) {
                           setTaxPercent(String(proj.defaultTaxPercent));
+                        }
+                        if (id && !defaultProjectId) {
+                          getNextInvoiceNumber(id).then(setInvoiceNumber);
                         }
                       }}
                       required
