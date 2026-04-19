@@ -43,21 +43,33 @@ export async function getEarningsByTeam() {
     .sort((a, b) => b.total - a.total);
 }
 
-export async function getMemberEarningTotals(): Promise<Record<string, number>> {
-  const grouped = await prisma.earning.groupBy({
-    by: ["memberId"],
-    _sum: { amount: true },
+export async function getMemberEarningTotals(year?: number): Promise<Record<string, number>> {
+  const invoiceDateFilter = year
+    ? { invoiceDate: { gte: new Date(`${year}-01-01`), lt: new Date(`${year + 1}-01-01`) } }
+    : undefined;
+  const rows = await prisma.earning.findMany({
+    where: invoiceDateFilter ? { invoice: invoiceDateFilter } : {},
+    select: { memberId: true, amount: true },
   });
-  return Object.fromEntries(grouped.map((g) => [g.memberId, g._sum.amount ?? 0]));
+  const totals: Record<string, number> = {};
+  for (const r of rows) totals[r.memberId] = (totals[r.memberId] ?? 0) + r.amount;
+  return totals;
 }
 
-export async function getMemberMarginTotals(): Promise<Record<string, number>> {
-  const grouped = await prisma.earning.groupBy({
-    by: ["memberId"],
-    where: { invoiceLineId: null },
-    _sum: { amount: true },
+export async function getMemberMarginTotals(year?: number): Promise<Record<string, number>> {
+  const invoiceDateFilter = year
+    ? { invoiceDate: { gte: new Date(`${year}-01-01`), lt: new Date(`${year + 1}-01-01`) } }
+    : undefined;
+  const rows = await prisma.earning.findMany({
+    where: {
+      invoiceLineId: null,
+      ...(invoiceDateFilter ? { invoice: invoiceDateFilter } : {}),
+    },
+    select: { memberId: true, amount: true },
   });
-  return Object.fromEntries(grouped.map((g) => [g.memberId, g._sum.amount ?? 0]));
+  const totals: Record<string, number> = {};
+  for (const r of rows) totals[r.memberId] = (totals[r.memberId] ?? 0) + r.amount;
+  return totals;
 }
 
 export async function getProfitMember() {

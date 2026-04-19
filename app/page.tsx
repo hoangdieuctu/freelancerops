@@ -8,13 +8,14 @@ import { getMemberEarningTotals, getMemberMarginTotals, getMembers } from "./act
 import Link from "next/link";
 
 export default async function DashboardPage() {
+  const currentYear = new Date().getFullYear();
   const [teams, customers, projects, members, earningTotals, marginTotals, invoices] = await Promise.all([
     getTeams(),
     getCustomers(),
     getProjects(),
     getMembers(),
-    getMemberEarningTotals(),
-    getMemberMarginTotals(),
+    getMemberEarningTotals(currentYear),
+    getMemberMarginTotals(currentYear),
     getInvoices(),
   ]);
 
@@ -140,7 +141,7 @@ export default async function DashboardPage() {
         {/* Earnings */}
         <div className="card">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-            <div className="display-font" style={{ fontSize: "18px", fontWeight: 700, letterSpacing: "0.03em" }}>EARNINGS</div>
+            <div className="display-font" style={{ fontSize: "18px", fontWeight: 700, letterSpacing: "0.03em" }}>EARNINGS {currentYear}</div>
             <Link href="/members" style={{ fontSize: "10px", color: "var(--text-muted)", textDecoration: "none" }}>Members →</Link>
           </div>
           <div style={{ marginBottom: "20px" }}>
